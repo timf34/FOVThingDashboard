@@ -50,8 +50,14 @@ iot_thread = Thread(target=start_iot_client)
 iot_thread.start()
 
 
-# # WebSocket route for real-time communication with frontend
-# @app.websocket("/ws")
-# async def websocket_endpoint(websocket: WebSocket):
-#     """WebSocket route for the frontend to receive real-time updates."""
-#     await WebSocketManager.websocket_endpoint(websocket)
+# WebSocket route for real-time communication with frontend
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    """WebSocket route for the frontend to receive real-time updates."""
+    await WebSocketManager.websocket_endpoint(websocket)
+
+
+if __name__ == "__main__":
+    import uvicorn
+    # Start the FastAPI app using Uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)

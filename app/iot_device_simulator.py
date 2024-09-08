@@ -3,9 +3,7 @@ A temporary script to simulate an FOV Tablet and send similar messages to a topi
 
 What do our devices do? What information do they send to which topics at what frequency?
 """
-import dotenv
 import json
-import os
 import random
 import time
 
@@ -19,8 +17,6 @@ ENDPOINT = "a3lkzcadhi1yzr-ats.iot.eu-west-1.amazonaws.com"
 
 
 def initialize_iot_manager() -> IOTClient:
-
-    cwd = os.getcwd()
 
     iot_context = IOTContext()
 
@@ -36,7 +32,6 @@ def initialize_iot_manager() -> IOTClient:
 
 
 def main():
-    dotenv.load_dotenv()
     iot_client = initialize_iot_manager()
     iot_client.connect()
 

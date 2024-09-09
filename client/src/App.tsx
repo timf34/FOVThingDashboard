@@ -19,7 +19,7 @@ const App: React.FC = () => {
   const connectWebSocket = () => {
     if (ws.current?.readyState === WebSocket.OPEN) return;
 
-    ws.current = new WebSocket('ws://localhost:8000/ws');
+    ws.current = new WebSocket(process.env.REACT_APP_WS_URL || 'ws://localhost:8000/ws');
 
     ws.current.onopen = () => {
       console.log('WebSocket connection established');

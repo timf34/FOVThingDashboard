@@ -4,19 +4,18 @@ import './index.css';
 
 interface Device {
   name: string;
-  wifiConnected: boolean;
-  batteryCharge: number;
-  temperature: number;
-  firmwareVersion: string;
+  wifiConnected?: boolean;  // Optional because WebSocket might not update this immediately
+  batteryCharge?: number;
+  temperature?: number;
+  firmwareVersion?: string;
 }
 
 const App: React.FC = () => {
-  // Initialize state for devices
   const [devices, setDevices] = useState<Device[]>([]);
 
-  // WebSocket connection
   useEffect(() => {
-    const ws = new WebSocket('ws://localhost:8000/ws'); // Replace 'your-backend-ip' with your actual backend IP or domain
+    const wsUrl = process.env.REACT_APP_WS_URL || 'ws://localhost:8000/ws';
+    const ws = new WebSocket(wsUrl);
 
     ws.onopen = () => {
       console.log('WebSocket connection established');
@@ -27,26 +26,26 @@ const App: React.FC = () => {
       console.log('Received data:', message);
 
       // Extract device name from the topic
-      const deviceName = message.topic.split('/')[2];  // Assuming topic follows the format 'fov-marvel-tablet-{n}'
-      const updatedDevice = {
-        name: deviceName,
-        wifiConnected: message.wifiConnected,
-        batteryCharge: message.batteryCharge,
-        temperature: message.temperature,
-        firmwareVersion: message.firmwareVersion,
-      };
+      const deviceName = message.topic.split('/')[2];  // Assuming topic follows 'fov-marvel-tablet-{n}/{type}'
 
-      // Update the state
       setDevices((prevDevices) => {
-        // Check if the device already exists
         const existingDevice = prevDevices.find(device => device.name === deviceName);
+
+        const updatedDevice: Device = {
+          ...existingDevice,  // Preserve existing device data
+          name: deviceName,
+          // Update only the relevant field based on the message type
+          ...(message.message.type === 'battery' && { batteryCharge: message.message.value }),
+          ...(message.message.type === 'temperature' && { temperature: message.message.value }),
+        };
+
         if (existingDevice) {
-          // Update the existing device
+          // Update the existing device with the new information
           return prevDevices.map(device =>
             device.name === deviceName ? updatedDevice : device
           );
         } else {
-          // Add a new device
+          // Add a new device if it doesn't exist
           return [...prevDevices, updatedDevice];
         }
       });
@@ -69,10 +68,10 @@ const App: React.FC = () => {
           <DeviceComponent
             key={device.name}
             name={device.name}
-            wifiConnected={device.wifiConnected}
-            batteryCharge={device.batteryCharge}
-            temperature={device.temperature}
-            firmwareVersion={device.firmwareVersion}
+            wifiConnected={device.wifiConnected ?? false}  // Default to false if undefined
+            batteryCharge={device.batteryCharge ?? 0}  // Default to 0 if undefined
+            temperature={device.temperature ?? 0}  // Default to 0 if undefined
+            firmwareVersion={device.firmwareVersion ?? 'N/A'}  // Default to 'N/A' if undefined
           />
         ))}
       </div>

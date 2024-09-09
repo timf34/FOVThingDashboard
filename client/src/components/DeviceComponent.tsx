@@ -2,10 +2,10 @@ import {BatteryIcon, CpuIcon, ThermometerIcon, WifiIcon} from "lucide-react";
 
 interface DeviceProps {
     name: string
-    wifiConnected: boolean
-    batteryCharge: number
-    temperature: number
-    firmwareVersion: string
+    wifiConnected?: boolean
+    batteryCharge?: number
+    temperature?: number
+    firmwareVersion?: string
 }
 
 function DeviceComponent({ name, wifiConnected, batteryCharge, temperature, firmwareVersion }: DeviceProps) {

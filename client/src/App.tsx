@@ -4,7 +4,7 @@ import './index.css';
 
 interface Device {
   name: string;
-  wifiConnected?: boolean;  // Optional because WebSocket might not update this immediately
+  wifiConnected?: boolean;
   batteryCharge?: number;
   temperature?: number;
   firmwareVersion?: string;
@@ -14,12 +14,20 @@ const App: React.FC = () => {
   const [devices, setDevices] = useState<Device[]>([]);
 
   useEffect(() => {
-    const wsUrl = process.env.REACT_APP_WS_URL || 'ws://localhost:8000/ws';
-    const ws = new WebSocket(wsUrl);
+    const ws = new WebSocket('ws://localhost:8000/ws'); // Adjust WebSocket URL for local/prod
 
     ws.onopen = () => {
       console.log('WebSocket connection established');
     };
+
+    ws.onerror = (error) => {
+      console.error('WebSocket Error:', error);
+    };
+
+    ws.onclose = (event) => {
+      console.log('WebSocket closed:', event);
+    };
+
 
     ws.onmessage = (event) => {
       const message = JSON.parse(event.data);
@@ -28,25 +36,29 @@ const App: React.FC = () => {
       // Extract device name from the topic
       const deviceName = message.topic.split('/')[2];  // Assuming topic follows 'fov-marvel-tablet-{n}/{type}'
 
+      // Define updatedField as an object that can hold multiple types
+      const updatedField: Partial<Device> = {};
+
+      // Identify the field to update based on message type (e.g., battery or temperature)
+      if (message.message.type === 'battery') {
+        updatedField.batteryCharge = Number(message.message.value);  // Ensure correct type
+      } else if (message.message.type === 'temperature') {
+        updatedField.temperature = Number(message.message.value);  // Ensure correct type
+      } else if (message.message.type === 'firmwareVersion') {
+        updatedField.firmwareVersion = message.message.value;  // For strings, no need to convert
+      }
+
       setDevices((prevDevices) => {
         const existingDevice = prevDevices.find(device => device.name === deviceName);
 
-        const updatedDevice: Device = {
-          ...existingDevice,  // Preserve existing device data
-          name: deviceName,
-          // Update only the relevant field based on the message type
-          ...(message.message.type === 'battery' && { batteryCharge: message.message.value }),
-          ...(message.message.type === 'temperature' && { temperature: message.message.value }),
-        };
-
         if (existingDevice) {
-          // Update the existing device with the new information
+          // Update the existing device with new information, preserving other fields
           return prevDevices.map(device =>
-            device.name === deviceName ? updatedDevice : device
+              device.name === deviceName ? { ...device, ...updatedField } : device
           );
         } else {
-          // Add a new device if it doesn't exist
-          return [...prevDevices, updatedDevice];
+          // Add a new device if it doesn't exist, initialize with the current field
+          return [...prevDevices, { name: deviceName, ...updatedField }];
         }
       });
     };
@@ -61,21 +73,21 @@ const App: React.FC = () => {
   }, []);
 
   return (
-    <div className="App p-4 space-y-4">
-      <h1 className="text-2xl font-semibold">FOV Dashboard</h1>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {devices.map((device) => (
-          <DeviceComponent
-            key={device.name}
-            name={device.name}
-            wifiConnected={device.wifiConnected ?? false}  // Default to false if undefined
-            batteryCharge={device.batteryCharge ?? 0}  // Default to 0 if undefined
-            temperature={device.temperature ?? 0}  // Default to 0 if undefined
-            firmwareVersion={device.firmwareVersion ?? 'N/A'}  // Default to 'N/A' if undefined
-          />
-        ))}
+      <div className="App p-4 space-y-4">
+        <h1 className="text-2xl font-semibold">FOV Dashboard</h1>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {devices.map((device) => (
+              <DeviceComponent
+                  key={device.name}
+                  name={device.name}
+                  wifiConnected={device.wifiConnected ?? false}  // Default to false if undefined
+                  batteryCharge={device.batteryCharge ?? 0}  // Default to 0 if undefined
+                  temperature={device.temperature ?? 0}  // Default to 0 if undefined
+                  firmwareVersion={device.firmwareVersion ?? 'N/A'}  // Default to 'N/A' if undefined
+              />
+          ))}
+        </div>
       </div>
-    </div>
   );
 };
 

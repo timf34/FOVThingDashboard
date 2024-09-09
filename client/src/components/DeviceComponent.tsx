@@ -11,7 +11,7 @@ interface DeviceProps {
 function DeviceComponent({ name, wifiConnected, batteryCharge, temperature, firmwareVersion }: DeviceProps) {
     return (
         <div className="bg-card text-card-foreground rounded-lg shadow-md p-4 flex flex-col space-y-4">
-            <h3 className="text-lg font-semibold">{name}</h3>
+            <h3 className="text-sm font-semibold">{name}</h3>
             <div className="flex items-center space-x-2">
                 <WifiIcon className={`h-5 w-5 ${wifiConnected ? 'text-green-500' : 'text-red-500'}`} />
                 <span>{wifiConnected ? 'Connected' : 'Disconnected'}</span>

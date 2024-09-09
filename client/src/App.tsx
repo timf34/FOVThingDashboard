@@ -1,57 +1,82 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import DeviceComponent from './components/DeviceComponent';
 import './index.css';
 
+interface Device {
+  name: string;
+  wifiConnected: boolean;
+  batteryCharge: number;
+  temperature: number;
+  firmwareVersion: string;
+}
+
 const App: React.FC = () => {
-  // Hardcoded sample data for devices
-  const devices = [
-    {
-      name: 'fov-marvel-tablet-1',
-      wifiConnected: true,
-      batteryCharge: 75,
-      temperature: 60,
-      firmwareVersion: '1.1.0',
-    },
-    {
-      name: 'fov-marvel-tablet-2',
-      wifiConnected: false,
-      batteryCharge: 45,
-      temperature: 55,
-      firmwareVersion: '1.0.8',
-    },
-    {
-      name: 'fov-marvel-tablet-3',
-      wifiConnected: true,
-      batteryCharge: 90,
-      temperature: 65,
-      firmwareVersion: '1.2.1',
-    },
-    {
-      name: 'fov-marvel-tablet-4',
-      wifiConnected: true,
-      batteryCharge: 30,
-      temperature: 72,
-      firmwareVersion: '1.1.5',
-    },
-    // Add more devices as needed
-  ];
+  // Initialize state for devices
+  const [devices, setDevices] = useState<Device[]>([]);
+
+  // WebSocket connection
+  useEffect(() => {
+    const ws = new WebSocket('ws://localhost:8000/ws'); // Replace 'your-backend-ip' with your actual backend IP or domain
+
+    ws.onopen = () => {
+      console.log('WebSocket connection established');
+    };
+
+    ws.onmessage = (event) => {
+      const message = JSON.parse(event.data);
+      console.log('Received data:', message);
+
+      // Extract device name from the topic
+      const deviceName = message.topic.split('/')[2];  // Assuming topic follows the format 'fov-marvel-tablet-{n}'
+      const updatedDevice = {
+        name: deviceName,
+        wifiConnected: message.wifiConnected,
+        batteryCharge: message.batteryCharge,
+        temperature: message.temperature,
+        firmwareVersion: message.firmwareVersion,
+      };
+
+      // Update the state
+      setDevices((prevDevices) => {
+        // Check if the device already exists
+        const existingDevice = prevDevices.find(device => device.name === deviceName);
+        if (existingDevice) {
+          // Update the existing device
+          return prevDevices.map(device =>
+            device.name === deviceName ? updatedDevice : device
+          );
+        } else {
+          // Add a new device
+          return [...prevDevices, updatedDevice];
+        }
+      });
+    };
+
+    ws.onclose = () => {
+      console.log('WebSocket connection closed');
+    };
+
+    return () => {
+      ws.close();
+    };
+  }, []);
 
   return (
-      <div className="App p-4 space-y-4">
-        <h1 className="text-2xl font-semibold">FOV Dashboard</h1>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {devices.map((device) => (
-              <DeviceComponent
-                  key={device.name}
-                  name={device.name}
-                  wifiConnected={device.wifiConnected}
-                  batteryCharge={device.batteryCharge}
-                  temperature={device.temperature}
-                  firmwareVersion={device.firmwareVersion}
-              />
-          ))}
-        </div>
+    <div className="App p-4 space-y-4">
+      <h1 className="text-2xl font-semibold">FOV Dashboard</h1>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {devices.map((device) => (
+          <DeviceComponent
+            key={device.name}
+            name={device.name}
+            wifiConnected={device.wifiConnected}
+            batteryCharge={device.batteryCharge}
+            temperature={device.temperature}
+            firmwareVersion={device.firmwareVersion}
+          />
+        ))}
       </div>
+    </div>
   );
 };
 

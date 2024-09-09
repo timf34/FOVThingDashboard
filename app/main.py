@@ -1,10 +1,14 @@
+import asyncio
 import json
+import uvicorn
+
 from fastapi import FastAPI, WebSocket
+from fastapi.middleware.cors import CORSMiddleware
 from aws_iot.IOTClient import IOTClient
 from aws_iot.IOTContext import IOTContext, IOTCredentials
 from concurrent.futures import Future
 from threading import Thread
-import asyncio
+
 
 from config import FOVDashboardConfig
 from websockets_manager import WebSocketManager
@@ -14,12 +18,20 @@ config = FOVDashboardConfig()
 # Initialize FastAPI app
 app = FastAPI()
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Or restrict to your React app's domain
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 def initialize_iot_client() -> IOTClient:
     iot_context = IOTContext()
     iot_credentials = IOTCredentials(
         cert_path=config.cert_path,
-        client_id="FOVDashboardClientxxx",
+        client_id="FOVDashboardClient",
         endpoint=config.endpoint,
         priv_key_path=config.private_key_path,
         ca_path=config.root_ca_path

@@ -4,10 +4,10 @@ import './index.css';
 
 interface Device {
   name: string;
-  wifiConnected?: boolean;
-  batteryCharge?: number;
-  temperature?: number;
-  firmwareVersion?: string;
+  wifiConnected: boolean;
+  batteryCharge: number | null;
+  temperature: number | null;
+  firmwareVersion: string | null;
 }
 
 const App: React.FC = () => {
@@ -35,37 +35,17 @@ const App: React.FC = () => {
       const message = JSON.parse(event.data);
       console.log('Received data:', message);
 
-      const deviceName = message.topic.split('/')[2];
-      const updatedField: Partial<Device> = {};
-
-      // Extract the type from the topic
-      const messageType = message.topic.split('/').pop();
-
-      // Parse the message value
-      const messageValue = message.message.split(': ')[1];
-
-      switch (messageType) {
-        case 'battery':
-          updatedField.batteryCharge = Number(messageValue);
-          break;
-        case 'temperature':
-          updatedField.temperature = Number(messageValue);
-          break;
-        case 'version':
-          updatedField.firmwareVersion = messageValue;
-          break;
-        default:
-          console.log("Message type not recognized:", messageType);
-      }
-
       setDevices((prevDevices) => {
-        const existingDevice = prevDevices.find(device => device.name === deviceName);
-        if (existingDevice) {
-          return prevDevices.map(device =>
-              device.name === deviceName ? { ...device, ...updatedField } : device
-          );
+        const deviceName = message.topic;
+        const deviceData = message.message as Device;
+        const existingDeviceIndex = prevDevices.findIndex(device => device.name === deviceName);
+
+        if (existingDeviceIndex !== -1) {
+          const updatedDevices = [...prevDevices];
+          updatedDevices[existingDeviceIndex] = deviceData;
+          return updatedDevices;
         } else {
-          return [...prevDevices, { name: deviceName, ...updatedField }];
+          return [...prevDevices, deviceData];
         }
       });
     };
@@ -74,7 +54,6 @@ const App: React.FC = () => {
       console.log('WebSocket closed:', event);
       setConnectionStatus('Disconnected. Attempting to reconnect...');
 
-      // Attempt to reconnect after 5 seconds
       reconnectTimeoutRef.current = setTimeout(() => {
         connectWebSocket();
       }, 5000);
@@ -95,22 +74,22 @@ const App: React.FC = () => {
   }, []);
 
   return (
-      <div className="App p-4 space-y-4">
-        <h1 className="text-2xl font-semibold">FOV Dashboard</h1>
-        <p>Connection Status: {connectionStatus}</p>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {devices.map((device) => (
-              <DeviceComponent
-                  key={device.name}
-                  name={device.name}
-                  wifiConnected={device.wifiConnected ?? false}
-                  batteryCharge={device.batteryCharge ?? 0}
-                  temperature={device.temperature ?? 0}
-                  firmwareVersion={device.firmwareVersion ?? 'N/A'}
-              />
-          ))}
-        </div>
+    <div className="App p-4 space-y-4">
+      <h1 className="text-2xl font-semibold">FOV Dashboard</h1>
+      <p>Connection Status: {connectionStatus}</p>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {devices.map((device) => (
+          <DeviceComponent
+            key={device.name}
+            name={device.name}
+            wifiConnected={device.wifiConnected}
+            batteryCharge={device.batteryCharge ?? 0}
+            temperature={device.temperature ?? 0}
+            firmwareVersion={device.firmwareVersion ?? 'N/A'}
+          />
+        ))}
       </div>
+    </div>
   );
 };
 

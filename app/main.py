@@ -8,12 +8,16 @@ from aws_iot.IOTClient import IOTClient
 from aws_iot.IOTContext import IOTContext, IOTCredentials
 from concurrent.futures import Future
 from threading import Thread
+from typing import List, Dict
 
 
 from config import FOVDashboardConfig
+from device import Device
 from websockets_manager import WebSocketManager
 
 config = FOVDashboardConfig()
+
+devices: Dict[str, Device] = {}
 
 # Initialize FastAPI app
 app = FastAPI()
@@ -40,29 +44,24 @@ def initialize_iot_client() -> IOTClient:
 
 
 def message_handler(topic, payload):
-    """Handle incoming MQTT messages and notify WebSocket clients."""
-    message_str = payload.decode("utf-8")  # Decode the payload from bytes to string
+    message_str = payload.decode("utf-8")
     print(f"Received message from topic '{topic}': {message_str}")
 
-    try:
-        # Try to load the message as JSON
-        message = json.loads(message_str)
-    except json.JSONDecodeError:
-        # If it's not valid JSON, manually create a dictionary
-        # TODO: I should actually format things better on the MQTT side!
-        if "Temperature" in message_str:
-            # Handle temperature message
-            value = message_str.split(": ")[1]
-            message = {"type": "temperature", "value": value}
-        elif "Battery" in message_str:
-            # Handle battery message
-            value = message_str.split(": ")[1]
-            message = {"type": "battery", "value": value}
-        else:
-            message = {"data": message_str}
+    device_name = topic.split('/')[2]
+    message_type = topic.split('/')[-1]
 
-    # Now call WebSocketManager with a dictionary object
-    asyncio.run(WebSocketManager.notify_clients(topic, message))
+    if device_name not in devices:
+        devices[device_name] = Device(device_name)
+
+    try:
+        value = json.loads(message_str)
+    except json.JSONDecodeError:
+        value = message_str.split(': ')[1] if ': ' in message_str else message_str
+
+    devices[device_name].update(message_type, value)
+
+    # Notify WebSocket clients
+    asyncio.run(WebSocketManager.notify_clients(device_name, devices[device_name].to_dict()))
 
 
 def start_iot_client():
@@ -81,14 +80,28 @@ iot_thread = Thread(target=start_iot_client)
 iot_thread.start()
 
 
-# WebSocket route for real-time communication with frontend
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
-    """WebSocket route for the frontend to receive real-time updates."""
     await WebSocketManager.websocket_endpoint(websocket)
+    for device in devices.values():
+        print("endpoing: ", device)
+        await websocket.send_json({device.name: device.to_dict()})
+
+
+async def check_device_status():
+    while True:
+        for device in devices.values():
+            print("check device status: ", device)
+            device.check_wifi_status()
+            await WebSocketManager.notify_clients(device.name, device.to_dict())
+        await asyncio.sleep(5)  # Check every 5 seconds
+
+
+@app.on_event("startup")
+async def startup_event():
+    asyncio.create_task(check_device_status())
 
 
 if __name__ == "__main__":
     import uvicorn
-    # Start the FastAPI app using Uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)

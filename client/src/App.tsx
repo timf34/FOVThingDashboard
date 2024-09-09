@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import DeviceComponent from './components/DeviceComponent';
 import './index.css';
 
@@ -12,78 +12,101 @@ interface Device {
 
 const App: React.FC = () => {
   const [devices, setDevices] = useState<Device[]>([]);
+  const [connectionStatus, setConnectionStatus] = useState<string>('Connecting...');
+  const ws = useRef<WebSocket | null>(null);
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  useEffect(() => {
-    const ws = new WebSocket('ws://localhost:8000/ws'); // Adjust WebSocket URL for local/prod
+  const connectWebSocket = () => {
+    if (ws.current?.readyState === WebSocket.OPEN) return;
 
-    ws.onopen = () => {
+    ws.current = new WebSocket('ws://localhost:8000/ws');
+
+    ws.current.onopen = () => {
       console.log('WebSocket connection established');
+      setConnectionStatus('Connected');
     };
 
-    ws.onerror = (error) => {
+    ws.current.onerror = (error) => {
       console.error('WebSocket Error:', error);
+      setConnectionStatus('Error connecting');
     };
 
-    ws.onclose = (event) => {
-      console.log('WebSocket closed:', event);
-    };
-
-
-    ws.onmessage = (event) => {
+    ws.current.onmessage = (event) => {
       const message = JSON.parse(event.data);
       console.log('Received data:', message);
 
-      // Extract device name from the topic
-      const deviceName = message.topic.split('/')[2];  // Assuming topic follows 'fov-marvel-tablet-{n}/{type}'
-
-      // Define updatedField as an object that can hold multiple types
+      const deviceName = message.topic.split('/')[2];
       const updatedField: Partial<Device> = {};
 
-      // Identify the field to update based on message type (e.g., battery or temperature)
-      if (message.message.type === 'battery') {
-        updatedField.batteryCharge = Number(message.message.value);  // Ensure correct type
-      } else if (message.message.type === 'temperature') {
-        updatedField.temperature = Number(message.message.value);  // Ensure correct type
-      } else if (message.message.type === 'firmwareVersion') {
-        updatedField.firmwareVersion = message.message.value;  // For strings, no need to convert
+      // Extract the type from the topic
+      const messageType = message.topic.split('/').pop();
+
+      // Parse the message value
+      const messageValue = message.message.split(': ')[1];
+
+      switch (messageType) {
+        case 'battery':
+          updatedField.batteryCharge = Number(messageValue);
+          break;
+        case 'temperature':
+          updatedField.temperature = Number(messageValue);
+          break;
+        case 'version':
+          updatedField.firmwareVersion = messageValue;
+          break;
+        default:
+          console.log("Message type not recognized:", messageType);
       }
 
       setDevices((prevDevices) => {
         const existingDevice = prevDevices.find(device => device.name === deviceName);
-
         if (existingDevice) {
-          // Update the existing device with new information, preserving other fields
           return prevDevices.map(device =>
               device.name === deviceName ? { ...device, ...updatedField } : device
           );
         } else {
-          // Add a new device if it doesn't exist, initialize with the current field
           return [...prevDevices, { name: deviceName, ...updatedField }];
         }
       });
     };
 
-    ws.onclose = () => {
-      console.log('WebSocket connection closed');
+    ws.current.onclose = (event) => {
+      console.log('WebSocket closed:', event);
+      setConnectionStatus('Disconnected. Attempting to reconnect...');
+
+      // Attempt to reconnect after 5 seconds
+      reconnectTimeoutRef.current = setTimeout(() => {
+        connectWebSocket();
+      }, 5000);
     };
+  };
+
+  useEffect(() => {
+    connectWebSocket();
 
     return () => {
-      ws.close();
+      if (ws.current) {
+        ws.current.close();
+      }
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+      }
     };
   }, []);
 
   return (
       <div className="App p-4 space-y-4">
         <h1 className="text-2xl font-semibold">FOV Dashboard</h1>
+        <p>Connection Status: {connectionStatus}</p>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {devices.map((device) => (
               <DeviceComponent
                   key={device.name}
                   name={device.name}
-                  wifiConnected={device.wifiConnected ?? false}  // Default to false if undefined
-                  batteryCharge={device.batteryCharge ?? 0}  // Default to 0 if undefined
-                  temperature={device.temperature ?? 0}  // Default to 0 if undefined
-                  firmwareVersion={device.firmwareVersion ?? 'N/A'}  // Default to 'N/A' if undefined
+                  wifiConnected={device.wifiConnected ?? false}
+                  batteryCharge={device.batteryCharge ?? 0}
+                  temperature={device.temperature ?? 0}
+                  firmwareVersion={device.firmwareVersion ?? 'N/A'}
               />
           ))}
         </div>

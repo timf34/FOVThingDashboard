@@ -35,13 +35,13 @@ def main():
     iot_client = initialize_iot_manager()
     iot_client.connect()
 
-    iot_client.publish(topic="ap-southeast-2/marvel/fov-marvel-tablet-1/version", payload=json.dumps("1.1.0"))
+    iot_client.publish(topic="ap-southeast-2/marvel/fov-marvel-tablet-test/version", payload=json.dumps("1.1.0"))
 
     while True:
         temperature = random.randint(50, 100)
         battery = random.randint(0, 100)
-        iot_client.publish(topic="ap-southeast-2/marvel/fov-marvel-tablet-1/temperature", payload=json.dumps(f"Temperature: {temperature}"))
-        iot_client.publish(topic="ap-southeast-2/marvel/fov-marvel-tablet-1/battery", payload=json.dumps(f"Battery Percentage: {battery}"))
+        iot_client.publish(topic="ap-southeast-2/marvel/fov-marvel-tablet-test/temperature", payload=json.dumps(f"Temperature: {temperature}"))
+        iot_client.publish(topic="ap-southeast-2/marvel/fov-marvel-tablet-test/battery", payload=json.dumps(f"Battery Percentage: {battery}"))
         time.sleep(5)
 
 

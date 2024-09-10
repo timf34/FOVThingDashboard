@@ -33,9 +33,16 @@ app.add_middleware(
 
 def initialize_iot_client() -> IOTClient:
     iot_context = IOTContext()
+
+    if os.name == 'nt':
+        client_id = "FOVDashboardClientLocal"
+    else:
+        client_id = "FOVDashboardClient"
+
+    print(f"Client ID: {client_id}")
     iot_credentials = IOTCredentials(
         cert_path=config.cert_path,
-        client_id="FOVDashboardClient",
+        client_id=client_id,
         endpoint=config.endpoint,
         priv_key_path=config.private_key_path,
         ca_path=config.root_ca_path

@@ -24,7 +24,14 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Or restrict to your React app's domain
+    allow_origins=[
+        "https://fovdashboard.com",
+        "https://www.fovdashboard.com",
+        "http://fovdashboard.com",
+        "http://localhost",
+        "http://localhost:3000",
+        "http://localhost:8000",
+        ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -89,10 +96,14 @@ iot_thread.start()
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
-    await WebSocketManager.websocket_endpoint(websocket)
-    for device in devices.values():
-        print("endpoing: ", device)
-        await websocket.send_json({device.name: device.to_dict()})
+    print("WebSocket connection attempt")
+    try:
+        await WebSocketManager.websocket_endpoint(websocket)
+        for device in devices.values():
+                print("endpoint: ", device)
+                await websocket.send_json({device.name: device.to_dict()})
+    except Exception as e:
+        print(f"WebSocket error: {e}")
 
 
 async def check_device_status():

@@ -7,9 +7,8 @@ from fastapi import FastAPI, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from aws_iot.IOTClient import IOTClient
 from aws_iot.IOTContext import IOTContext, IOTCredentials
-from concurrent.futures import Future
 from threading import Thread
-from typing import List, Dict
+from typing import  Dict
 
 
 from config import FOVDashboardConfig

@@ -10,10 +10,10 @@ import time
 from aws_iot.IOTClient import IOTClient
 from aws_iot.IOTContext import IOTContext, IOTCredentials
 
-CERT_PATH = "aws-iot-certs/fov-dashboard-client-dublin-1-certificate.pem.crt"
-PRIVATE_KEY_PATH = "aws-iot-certs/fov-dashboard-client-dublin-1-private.pem.key"
-ROOT_CA_PATH = "aws-iot-certs/AmazonRootCA1.pem"
-ENDPOINT = "a3lkzcadhi1yzr-ats.iot.eu-west-1.amazonaws.com"
+CERT_PATH = "./aws-iot-certs/fov-dashboard-sydney-client/fov-dashboard-client-sydney-1-certificate.pem.crt"
+PRIVATE_KEY_PATH = "./aws-iot-certs/fov-dashboard-sydney-client/fov-dashboard-client-sydney-1-private.pem.key"
+ROOT_CA_PATH = "./aws-iot-certs/fov-dashboard-sydney-client/AmazonRootCA1.pem"
+ENDPOINT = "a3lkzcadhi1yzr-ats.iot.ap-southeast-2.amazonaws.com"
 
 
 def initialize_iot_manager() -> IOTClient:

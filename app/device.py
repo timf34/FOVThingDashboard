@@ -32,7 +32,7 @@ class Device:
             self.firmware_version = value.get('Version', '')
 
     def check_wifi_status(self):
-        if self.last_message_time and datetime.now() - self.last_message_time <= timedelta(seconds=10):
+        if self.last_message_time and datetime.now() - self.last_message_time <= timedelta(seconds=61):
             self.wifi_connected = True
         else:
             self.wifi_connected = False

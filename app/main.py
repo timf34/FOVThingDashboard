@@ -109,10 +109,9 @@ async def websocket_endpoint(websocket: WebSocket):
 async def check_device_status():
     while True:
         for device in devices.values():
-            print("check device status: ", device)
             device.check_wifi_status()
             await WebSocketManager.notify_clients(device.name, device.to_dict())
-        await asyncio.sleep(5)  # Check every 5 seconds
+        await asyncio.sleep(30)  # Check every 5 seconds
 
 
 @app.on_event("startup")

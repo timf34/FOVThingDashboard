@@ -12,8 +12,11 @@ class Device:
         self.last_message_time = None
 
     def update(self, message_type, value):
-        print("value: ", value)
         self.last_message_time = datetime.now()
+
+        if message_type == 'version':
+            self.firmware_version = value  # Handle version as a plain string (it's not sent as a JSON)
+            return
 
         # Parse the JSON string if it's not already a dictionary
         if isinstance(value, str):
@@ -28,8 +31,6 @@ class Device:
             self.battery_charge = float(value.get('Battery Percentage', 0))
         elif message_type == 'temperature':
             self.temperature = float(value.get('Temperature', 0))
-        elif message_type == 'version':
-            self.firmware_version = value.get('Version', '')
 
     def check_wifi_status(self):
         if self.last_message_time and datetime.now() - self.last_message_time <= timedelta(seconds=61):

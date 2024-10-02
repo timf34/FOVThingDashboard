@@ -1,3 +1,4 @@
+import json
 from datetime import datetime, timedelta
 
 
@@ -11,15 +12,24 @@ class Device:
         self.last_message_time = None
 
     def update(self, message_type, value):
+        print("value: ", value)
         self.last_message_time = datetime.now()
-        value = value.split(': ')[1] if ': ' in value else value
+
+        # Parse the JSON string if it's not already a dictionary
+        if isinstance(value, str):
+            try:
+                value = json.loads(value)
+            except json.JSONDecodeError:
+                print(f"Error decoding JSON: {value}")
+                return
+
         if message_type == 'battery':
             print("Battery charge: ", value)
-            self.battery_charge = float(value)
+            self.battery_charge = float(value.get('Battery', 0))
         elif message_type == 'temperature':
-            self.temperature = float(value)
+            self.temperature = float(value.get('Temperature', 0))
         elif message_type == 'version':
-            self.firmware_version = value
+            self.firmware_version = value.get('Version', '')
 
     def check_wifi_status(self):
         if self.last_message_time and datetime.now() - self.last_message_time <= timedelta(seconds=10):

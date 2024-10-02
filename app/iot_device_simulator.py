@@ -43,12 +43,12 @@ def main():
         battery = random.randint(0, 100)
 
         temp_payload = json.dumps({"Temperature": temperature})
-        battery_payload = json.dumps({"Battery": battery})
+        battery_payload = json.dumps({"Battery Percentage": battery})
 
         iot_client.publish(topic="ap-southeast-2/marvel/fov-marvel-tablet-test/temperature", payload=temp_payload)
         iot_client.publish(topic="ap-southeast-2/marvel/fov-marvel-tablet-test/battery", payload=battery_payload)
 
-        time.sleep(5)
+        time.sleep(60)
 
 
 if __name__ == "__main__":

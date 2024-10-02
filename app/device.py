@@ -25,7 +25,7 @@ class Device:
 
         if message_type == 'battery':
             print("Battery charge: ", value)
-            self.battery_charge = float(value.get('Battery', 0))
+            self.battery_charge = float(value.get('Battery Percentage', 0))
         elif message_type == 'temperature':
             self.temperature = float(value.get('Temperature', 0))
         elif message_type == 'version':

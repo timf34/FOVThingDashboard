@@ -38,7 +38,6 @@ const App: React.FC = () => {
 
     ws.current.onmessage = (event) => {
       const data = JSON.parse(event.data);
-      console.log('Received data:', data);
 
       setDevices(prevDevices => ({
         ...prevDevices,

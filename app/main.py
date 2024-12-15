@@ -1,5 +1,6 @@
 import asyncio
 import os
+from datetime import timezone
 from fastapi import FastAPI, WebSocket, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime, timedelta
@@ -126,15 +127,16 @@ async def get_device_history(
 ):
     """Get historical logs for a device"""
     try:
-        start_time = datetime.utcnow() - timedelta(hours=hours) if hours else None
-        logs = device_manager.get_device_history(
-            device_name,
-            metric_type=metric_type,
-            start_time=start_time
+        start_time = (
+            datetime.now(timezone.utc) - timedelta(hours=hours)
+            if hours
+            else None
         )
-        return logs
+        return device_manager.get_device_history(
+            device_name, metric_type=metric_type, start_time=start_time
+        )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 async def check_device_status():
     """Periodic task to update device WiFi status"""

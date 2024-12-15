@@ -82,6 +82,7 @@ def start_iot_client():
     iot_client.subscribe(topic=config.version_topic, handler=message_handler)
     iot_client.subscribe(topic=config.battery_topic, handler=message_handler)
     iot_client.subscribe(topic=config.temperature_topic, handler=message_handler)
+    iot_client.subscribe(topic=config.ota_topic, handler=message_handler)
 
 
 @app.websocket("/ws")

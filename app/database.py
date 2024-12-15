@@ -33,7 +33,7 @@ class DeviceLog(Base):
     id = Column(Integer, primary_key=True)
     device_id = Column(Integer, ForeignKey('devices.id'), nullable=False)
     timestamp = Column(DateTime, default=datetime.utcnow, nullable=False)
-    metric_type = Column(String, nullable=False)  # 'battery', 'temperature', or 'version'
+    metric_type = Column(String, nullable=False)  # 'battery', 'temperature', 'version' or 'ota'
     metric_value = Column(String, nullable=False)  # Store all values as strings
 
     # Relationship to Device

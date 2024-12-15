@@ -8,6 +8,7 @@ interface Device {
   batteryCharge: number;
   temperature: number;
   firmwareVersion: string;
+  otaUpdateStatus: string;
   lastMessageTime: string;
   firstSeen: string;
 }

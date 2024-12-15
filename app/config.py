@@ -5,6 +5,7 @@ class FOVDashboardConfig:
         self.version_topic: str = "ap-southeast-2/marvel/+/version"
         self.battery_topic: str = "ap-southeast-2/marvel/+/battery"
         self.temperature_topic: str = "ap-southeast-2/marvel/+/temperature"
+        self.ota_topic: str = "ap-southeast-2/marvel/+/ota"
 
         self.endpoint: str = "a3lkzcadhi1yzr-ats.iot.ap-southeast-2.amazonaws.com"
         self.cert_path: str = "./aws-iot-certs/fov-dashboard-sydney-client/fov-dashboard-client-sydney-1-certificate.pem.crt"

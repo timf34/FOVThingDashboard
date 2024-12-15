@@ -38,6 +38,7 @@ class DeviceManager:
             'batteryCharge': float(latest_values.get('battery', 0)),
             'temperature': float(latest_values.get('temperature', 0)),
             'firmwareVersion': latest_values.get('version', 'N/A'),
+            'otaStatus': latest_values.get('ota', 'N/A'),
             'lastMessageTime': self._serialize_datetime(device.last_message_time),
             'firstSeen': self._serialize_datetime(device.first_seen)
         }

@@ -1,2 +1,3 @@
 /aws-iot-certs
 /venv
+__pycache__

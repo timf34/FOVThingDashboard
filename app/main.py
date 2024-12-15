@@ -123,20 +123,27 @@ async def get_devices():
 async def get_device_history(
     device_name: str,
     metric_type: Optional[str] = None,
-    hours: Optional[int] = 24
+    hours: Optional[int] = 24,
+    last_id: Optional[int] = None,
+    page_size: int = 50
 ):
-    """Get historical logs for a device"""
+    """Get historical logs for a device with pagination"""
     try:
-        start_time = (
-            datetime.now(timezone.utc) - timedelta(hours=hours)
-            if hours
-            else None
+        start_time = datetime.utcnow() - timedelta(hours=hours) if hours else None
+        logs, has_more = device_manager.get_device_history(
+            device_name,
+            metric_type=metric_type,
+            start_time=start_time,
+            page_size=page_size,
+            last_id=last_id
         )
-        return device_manager.get_device_history(
-            device_name, metric_type=metric_type, start_time=start_time
-        )
+        return {
+            "logs": logs,
+            "hasMore": has_more,
+            "lastId": logs[-1]['id'] if logs else None
+        }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise HTTPException(status_code=500, detail=str(e))
 
 async def check_device_status():
     """Periodic task to update device WiFi status"""

@@ -1,6 +1,6 @@
 import json
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 from sqlalchemy.orm import Session, sessionmaker
 from database import Device, DeviceLog
 
@@ -111,17 +111,21 @@ class DeviceManager:
         finally:
             session.close()
 
-    def get_device_history(self, device_name: str, metric_type: Optional[str] = None,
+    def get_device_history(self, device_name: str,
+                           metric_type: Optional[str] = None,
                            start_time: Optional[datetime] = None,
-                           end_time: Optional[datetime] = None) -> List[Dict]:
+                           end_time: Optional[datetime] = None,
+                           page_size: int = 100,
+                           last_id: Optional[int] = None) -> Tuple[List[Dict], bool]:
         """
-        Retrieve historical logs for a device with optional filtering
+        Retrieve historical logs for a device with pagination
+        Returns: Tuple of (logs, has_more)
         """
         session = self.session_factory()
         try:
             device = session.query(Device).filter(Device.name == device_name).first()
             if not device:
-                return []
+                return [], False
 
             query = session.query(DeviceLog).filter(DeviceLog.device_id == device.id)
 
@@ -131,14 +135,24 @@ class DeviceManager:
                 query = query.filter(DeviceLog.timestamp >= start_time)
             if end_time:
                 query = query.filter(DeviceLog.timestamp <= end_time)
+            if last_id:
+                query = query.filter(DeviceLog.id < last_id)
 
-            logs = query.order_by(DeviceLog.timestamp.desc()).all()
+            # Order by id descending to get most recent first
+            query = query.order_by(DeviceLog.id.desc())
+
+            # Get one extra item to check if there are more results
+            logs = query.limit(page_size + 1).all()
+
+            has_more = len(logs) > page_size
+            logs = logs[:page_size]  # Remove the extra item if it exists
 
             return [{
+                'id': log.id,
                 'timestamp': self._serialize_datetime(log.timestamp),
                 'metricType': log.metric_type,
                 'value': log.metric_value
-            } for log in logs]
+            } for log in logs], has_more
         finally:
             session.close()
 

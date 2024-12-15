@@ -2,6 +2,13 @@ import React, { useState } from 'react';
 import { BatteryIcon, CpuIcon, ThermometerIcon, WifiIcon } from "lucide-react";
 import DeviceHistoryModal from './DeviceHistoryModal';
 
+interface HistoryEntry {
+  id: number;
+  timestamp: string;
+  metricType: string;
+  value: string;
+}
+
 interface DeviceProps {
     name: string;
     wifiConnected?: boolean;
@@ -12,26 +19,48 @@ interface DeviceProps {
 
 function DeviceComponent({ name, wifiConnected, batteryCharge, temperature, firmwareVersion }: DeviceProps) {
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [history, setHistory] = useState<any[]>([]);
+    const [history, setHistory] = useState<HistoryEntry[]>([]);
     const [isLoading, setIsLoading] = useState(false);
+    const [hasMore, setHasMore] = useState(true);
 
     const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
     const handleClick = async () => {
         setIsModalOpen(true);
         setIsLoading(true);
+        const data = await fetchHistory();
+        setHistory(data.logs);
+        setHasMore(data.hasMore);
+        setIsLoading(false);
+    };
+
+    const handleLoadMore = async (lastId: number) => {
+        const data = await fetchHistory(lastId);
+        setHistory(prev => [...prev, ...data.logs]);
+        setHasMore(data.hasMore);
+    };
+
+        const fetchHistory = async (lastId?: number) => {
         try {
-            const response = await fetch(`${API_URL}/api/device/${name}/history`);
+            const url = new URL(`${API_URL}/api/device/${name}/history`);
+            if (lastId) {
+                url.searchParams.append('last_id', lastId.toString());
+            }
+
+            const response = await fetch(url.toString());
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
+
             const data = await response.json();
-            console.log('Received history:', data);  // Debug log
-            setHistory(data);
+            console.log('Fetched device history:', data);
+            return {
+                logs: data.logs || [],
+                hasMore: !!data.hasMore
+            };
         } catch (error) {
             console.error('Error fetching device history:', error);
-        } finally {
-            setIsLoading(false);
+            return { logs: [], hasMore: false };
         }
     };
 
@@ -77,6 +106,8 @@ function DeviceComponent({ name, wifiConnected, batteryCharge, temperature, firm
                 onClose={() => setIsModalOpen(false)}
                 history={history}
                 isLoading={isLoading}
+                hasMore={hasMore}
+                onLoadMore={handleLoadMore}
             />
         </>
     );

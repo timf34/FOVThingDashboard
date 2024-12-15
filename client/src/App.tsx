@@ -5,13 +5,15 @@ import './index.css';
 interface Device {
   name: string;
   wifiConnected: boolean;
-  batteryCharge: number | null;
-  temperature: number | null;
-  firmwareVersion: string | null;
+  batteryCharge: number;
+  temperature: number;
+  firmwareVersion: string;
+  lastMessageTime: string;
+  firstSeen: string;
 }
 
 const App: React.FC = () => {
-  const [devices, setDevices] = useState<Device[]>([]);
+  const [devices, setDevices] = useState<Record<string, Device>>({});
   const [connectionStatus, setConnectionStatus] = useState<string>('Connecting...');
   const ws = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -19,9 +21,9 @@ const App: React.FC = () => {
   const connectWebSocket = () => {
     if (ws.current?.readyState === WebSocket.OPEN) return;
 
-    const wsUrl = process.env.REACT_APP_WS_URL;
+    const wsUrl = process.env.REACT_APP_WS_URL || 'ws://localhost:8000/ws';
     console.log('Connecting to WebSocket:', wsUrl);
-    ws.current = new WebSocket(wsUrl || 'ws://localhost:8000');
+    ws.current = new WebSocket(wsUrl);
 
     ws.current.onopen = () => {
       console.log('WebSocket connection established');
@@ -34,27 +36,22 @@ const App: React.FC = () => {
     };
 
     ws.current.onmessage = (event) => {
-      const message = JSON.parse(event.data);
-      console.log('Received data:', message);
+      const data = JSON.parse(event.data);
+      console.log('Received data:', data);
 
-      setDevices((prevDevices) => {
-        const deviceName = message.topic;
-        const deviceData = message.message as Device;
-        const existingDeviceIndex = prevDevices.findIndex(device => device.name === deviceName);
-
-        if (existingDeviceIndex !== -1) {
-          const updatedDevices = [...prevDevices];
-          updatedDevices[existingDeviceIndex] = deviceData;
-          return updatedDevices;
-        } else {
-          return [...prevDevices, deviceData];
-        }
-      });
+      setDevices(prevDevices => ({
+        ...prevDevices,
+        [data.topic]: data.message
+      }));
     };
 
-    ws.current.onclose = (event) => {
-      console.log('WebSocket closed:', event);
+    ws.current.onclose = () => {
+      console.log('WebSocket connection closed');
       setConnectionStatus('Disconnected. Attempting to reconnect...');
+
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+      }
 
       reconnectTimeoutRef.current = setTimeout(() => {
         connectWebSocket();
@@ -80,14 +77,14 @@ const App: React.FC = () => {
       <h1 className="text-2xl font-semibold">FOV Dashboard</h1>
       <p>Connection Status: {connectionStatus}</p>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {devices.map((device) => (
+        {Object.entries(devices).map(([deviceName, device]) => (
           <DeviceComponent
-            key={device.name}
+            key={deviceName}
             name={device.name}
             wifiConnected={device.wifiConnected}
-            batteryCharge={device.batteryCharge ?? 0}
-            temperature={device.temperature ?? 0}
-            firmwareVersion={device.firmwareVersion ?? 'N/A'}
+            batteryCharge={device.batteryCharge}
+            temperature={device.temperature}
+            firmwareVersion={device.firmwareVersion}
           />
         ))}
       </div>

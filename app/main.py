@@ -54,7 +54,6 @@ def initialize_iot_client() -> IOTClient:
 
 
 def message_handler(topic, payload):
-    """Handle incoming MQTT messages"""
     try:
         message_str = payload.decode("utf-8")
         print(f"Received message from topic '{topic}': {message_str}")
@@ -65,10 +64,12 @@ def message_handler(topic, payload):
         # Update device and get latest state
         device_data = device_manager.update_device(device_name, metric_type, message_str)
 
-        # Notify WebSocket clients
+        # Notify WebSocket clients with proper message format
         asyncio.run(WebSocketManager.notify_clients(device_name, device_data))
     except Exception as e:
-        print(f"Error handling message: {e}")
+        print(f"Error handling message: {str(e)}")
+        import traceback
+        traceback.print_exc()
 
 
 def start_iot_client():
@@ -87,13 +88,24 @@ async def websocket_endpoint(websocket: WebSocket):
     print("WebSocket connection attempt")
     try:
         await WebSocketManager.connect(websocket)
+
         # Send current state of all devices
         for device_name, device_data in device_manager.devices.items():
-            await websocket.send_json({device_name: device_data})
+            try:
+                await websocket.send_json({
+                    "topic": device_name,
+                    "message": device_data
+                })
+            except Exception as e:
+                print(f"Error sending device data: {e}")
 
         # Keep connection alive and handle any client messages
         while True:
-            await websocket.receive_text()
+            try:
+                await websocket.receive_text()
+            except Exception as e:
+                print(f"Error receiving message: {e}")
+                break
     except Exception as e:
         print(f"WebSocket error: {e}")
     finally:

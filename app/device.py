@@ -15,6 +15,10 @@ class DeviceManager:
         self.devices: Dict[str, Dict] = {}  # In-memory cache
         self._load_devices_from_db()
 
+    def _serialize_datetime(self, dt: Optional[datetime]) -> Optional[str]:
+        """Convert datetime to ISO format string"""
+        return dt.isoformat() if dt else None
+
     def _load_devices_from_db(self):
         """Load existing devices from database into memory cache"""
         session = self.session_factory()
@@ -34,8 +38,8 @@ class DeviceManager:
             'batteryCharge': float(latest_values.get('battery', 0)),
             'temperature': float(latest_values.get('temperature', 0)),
             'firmwareVersion': latest_values.get('version', 'N/A'),
-            'lastMessageTime': device.last_message_time,
-            'firstSeen': device.first_seen
+            'lastMessageTime': self._serialize_datetime(device.last_message_time),
+            'firstSeen': self._serialize_datetime(device.first_seen)
         }
 
     def get_or_create_device(self, name: str) -> Device:
@@ -131,7 +135,7 @@ class DeviceManager:
             logs = query.order_by(DeviceLog.timestamp.desc()).all()
 
             return [{
-                'timestamp': log.timestamp,
+                'timestamp': self._serialize_datetime(log.timestamp),
                 'metricType': log.metric_type,
                 'value': log.metric_value
             } for log in logs]

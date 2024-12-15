@@ -16,8 +16,19 @@ class Device(Base):
     first_seen = Column(DateTime, default=datetime.utcnow)
 
     # Latest known values
-    last_metric_values = Column(
-        String)  # Store as JSON string: {"battery": "85.5", "temperature": "24.3", "version": "1.1.0"}
+    last_metric_values = Column(String)
+    # JSON string now includes:
+    # {
+    #   "battery": "85.5",
+    #   "temperature": "24.3",
+    #   "version": "1.1.0",
+    #   "ota": {
+    #     "status": "success|error|in_progress",
+    #     "event": "updateFirmware",
+    #     "message": "Firmware written successfully",
+    #     "timestamp": "2024-02-20T10:00:00Z"
+    #   }
+    # }
 
     # Relationship to DeviceLog
     logs = relationship("DeviceLog", back_populates="device", cascade="all, delete-orphan")

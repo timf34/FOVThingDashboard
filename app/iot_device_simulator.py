@@ -9,11 +9,9 @@ import time
 
 from aws_iot.IOTClient import IOTClient
 from aws_iot.IOTContext import IOTContext, IOTCredentials
+from config import FOVDashboardConfig
 
-CERT_PATH = "./aws-iot-certs/fov-dashboard-sydney-client/fov-dashboard-client-sydney-1-certificate.pem.crt"
-PRIVATE_KEY_PATH = "./aws-iot-certs/fov-dashboard-sydney-client/fov-dashboard-client-sydney-1-private.pem.key"
-ROOT_CA_PATH = "./aws-iot-certs/fov-dashboard-sydney-client/AmazonRootCA1.pem"
-ENDPOINT = "a3lkzcadhi1yzr-ats.iot.ap-southeast-2.amazonaws.com"
+config = FOVDashboardConfig()
 
 
 def initialize_iot_manager() -> IOTClient:
@@ -21,11 +19,11 @@ def initialize_iot_manager() -> IOTClient:
     iot_context = IOTContext()
 
     iot_credentials = IOTCredentials(
-        cert_path=CERT_PATH,
+        cert_path=config.cert_path,
         client_id="FOVTablet-Simulator",
-        endpoint=ENDPOINT,
-        priv_key_path=PRIVATE_KEY_PATH,
-        ca_path=ROOT_CA_PATH
+        endpoint=config.endpoint,
+        priv_key_path=config.private_key_path,
+        ca_path=config.root_ca_path
     )
 
     return IOTClient(iot_context, iot_credentials, publish_topic="hello")

@@ -20,4 +20,4 @@ class FOVDashboardConfig:
         self.endpoint: str = "a3lkzcadhi1yzr-ats.iot.eu-west-1.amazonaws.com"
         self.cert_path: str = "./aws-iot-certs/fov-dashboard-dublin-client/certificate.pem.crt"
         self.private_key_path: str = "./aws-iot-certs/fov-dashboard-dublin-client/private.pem.key"
-        self.root_ca_path: str = "./aws-iot-certs/fov-dashboard-dublin-client/AmazonRootCA1"
+        self.root_ca_path: str = "./aws-iot-certs/fov-dashboard-dublin-client/AmazonRootCA1.pem"

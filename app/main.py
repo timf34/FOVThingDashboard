@@ -90,7 +90,6 @@ async def websocket_endpoint(websocket: WebSocket):
     print("WebSocket connection attempt")
     try:
         await WebSocketManager.connect(websocket)
-
         # Send current state of all devices
         for device_name, device_data in device_manager.devices.items():
             try:
@@ -99,19 +98,30 @@ async def websocket_endpoint(websocket: WebSocket):
                     "message": device_data
                 })
             except Exception as e:
-                print(f"Error sending device data: {e}")
-
-        # Keep connection alive and handle any client messages
+                print(f"Error sending initial device data: {e}")
+        
+        # Keep connection alive with ping/pong mechanism
         while True:
             try:
-                await websocket.receive_text()
+                # Use a timeout to detect stale connections
+                data = await asyncio.wait_for(websocket.receive_text(), timeout=60)
+                # Echo back as a simple ping/pong mechanism
+                await websocket.send_text("pong")
+            except asyncio.TimeoutError:
+                # Send a ping to check if connection is still alive
+                try:
+                    await websocket.send_text("ping")
+                except Exception:
+                    # Connection is dead, break loop
+                    break
             except Exception as e:
-                print(f"Error receiving message: {e}")
+                print(f"WebSocket receive error: {e}")
                 break
     except Exception as e:
-        print(f"WebSocket error: {e}")
+        print(f"WebSocket connection error: {str(e)}")
     finally:
         await WebSocketManager.disconnect(websocket)
+        print("WebSocket connection closed")
 
 
 @app.get("/api/devices")

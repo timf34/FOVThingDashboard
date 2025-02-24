@@ -34,19 +34,34 @@ const App: React.FC = () => {
     ws.current.onerror = (error) => {
       console.error('WebSocket Error:', error);
       setConnectionStatus('Error connecting');
+      if (ws.current) {
+        ws.current.close();
+      }
     };
 
     ws.current.onmessage = (event) => {
-      const data = JSON.parse(event.data);
+      // Handle ping/pong messages
+      if (event.data === "ping") {
+        ws.current?.send("pong");
+        return;
+      }
+      if (event.data === "pong") {
+        return;
+      }
 
-      setDevices(prevDevices => ({
-        ...prevDevices,
-        [data.topic]: data.message
-      }));
+      try {
+        const data = JSON.parse(event.data);
+        setDevices(prevDevices => ({
+          ...prevDevices,
+          [data.topic]: data.message
+        }));
+      } catch (error) {
+        console.error('Error parsing WebSocket message:', error);
+      }
     };
 
-    ws.current.onclose = () => {
-      console.log('WebSocket connection closed');
+    ws.current.onclose = (event) => {
+      console.log(`WebSocket closed: ${event.code} ${event.reason}`);
       setConnectionStatus('Disconnected. Attempting to reconnect...');
 
       if (reconnectTimeoutRef.current) {

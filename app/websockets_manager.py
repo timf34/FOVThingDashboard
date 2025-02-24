@@ -16,11 +16,21 @@ class WebSocketManager:
 
     @classmethod
     async def notify_clients(cls, topic, message):
+        disconnected_clients = []
         for client in cls.clients:
-            await client.send_json({
-                "topic": topic,
-                "message": message  # Now this is always a dictionary
-            })
+            try:
+                await client.send_json({
+                    "topic": topic,
+                    "message": message
+                })
+            except Exception as e:
+                print(f"Error sending to client - removing: {e}")
+                disconnected_clients.append(client)
+        
+        # Remove disconnected clients
+        for client in disconnected_clients:
+            if client in cls.clients:
+                cls.clients.remove(client)
 
     @classmethod
     async def websocket_endpoint(cls, websocket: WebSocket):

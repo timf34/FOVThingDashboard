@@ -85,6 +85,36 @@ def start_iot_client():
     iot_client.subscribe(topic=config.ota_topic, handler=message_handler)
 
 
+@app.get("/api/status")
+async def status():
+    """Return system status information for debugging"""
+    import psutil
+    import os
+    
+    # Check if certificates exist
+    cert_files = {
+        "cert_path": os.path.exists(config.cert_path),
+        "private_key_path": os.path.exists(config.private_key_path),
+        "root_ca_path": os.path.exists(config.root_ca_path)
+    }
+    
+    # Get system information
+    mem = psutil.virtual_memory()
+    
+    return {
+        "status": "online",
+        "certificates": cert_files,
+        "device_count": len(device_manager.devices),
+        "websocket_connections": len(WebSocketManager.clients),
+        "system": {
+            "cpu_percent": psutil.cpu_percent(),
+            "memory_used_percent": mem.percent,
+            "memory_available_mb": mem.available / (1024 * 1024)
+        },
+        "server_time": datetime.utcnow().isoformat()
+    }
+
+
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     print("WebSocket connection attempt")

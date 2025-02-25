@@ -5,8 +5,20 @@ services:
     ports:
       - "3000:3000"
     container_name: fov-frontend
+    restart: always
+    
   backend:
     build: ./app
     ports:
       - "8000:8000"
     container_name: fov-backend
+    restart: always
+    volumes:
+      - ./app/aws-iot-certs:/app/aws-iot-certs
+    environment:
+      - IOT_CLIENT_ID=FOVDashboardClient-Droplet
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/devices"]
+      interval: 1m
+      timeout: 10s
+      retries: 3

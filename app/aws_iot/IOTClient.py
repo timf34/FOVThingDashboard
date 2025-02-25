@@ -116,6 +116,7 @@ class IOTClient:
         # TODO: At the moment, when this is raised, the code continues as normal, which is not the desired behaviour
         #  as its not clear that things will not be working (messages are not getting sent!)
         #  We also have no 'reconnection' code implemented
+        print(f"Connection interrupted: {str(error)}")
         raise ConnectionError("Connection interrupted. Ensure client ID isn't beind used elsewhere. Reconnecting...")
 
 

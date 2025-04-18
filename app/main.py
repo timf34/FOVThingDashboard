@@ -197,7 +197,7 @@ async def check_device_status():
 async def startup_event():
     # Start the AWS IoT client in a background thread
     iot_thread = Thread(target=start_iot_client)
-    iot_thread.daemon = True
+    iot_thread.daemon = False   # ✅ make it non-daemon so it keeps container alive
     iot_thread.start()
 
     # Start the device status checker

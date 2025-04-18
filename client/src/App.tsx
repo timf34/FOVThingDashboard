@@ -75,6 +75,19 @@ const App: React.FC = () => {
   };
 
   useEffect(() => {
+    const loadInitial = async () => {
+      try {
+        const api =
+          process.env.REACT_APP_API_URL ||
+          `${window.location.protocol}//${window.location.host}`;
+        const res = await fetch(`${api}/api/devices`);
+        setDevices(await res.json());
+      } catch (e) {
+        console.error('initial fetch failed', e);
+      }
+    };
+  
+    loadInitial();
     connectWebSocket();
 
     return () => {

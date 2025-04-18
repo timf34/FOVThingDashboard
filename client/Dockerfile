@@ -1,22 +1,18 @@
-# Frontend Dockerfile
+# client/Dockerfile
 FROM node:18-alpine
-
 WORKDIR /app
 
+# 1️⃣ copy env *first* so CRA can read it at build‑time
+COPY .env.production .env                
+
+# 2️⃣ install deps & copy sources
 COPY package.json package-lock.json ./
-
-# Copy .env.production explicitly
-COPY .env.production .env
-
 RUN npm install
-
-
-
 COPY . .
 
-# Build the React app
+# 3️⃣ build with the correct .env already in place
 RUN npm run build
 
-# Serve the app using a static server
+# 4️⃣ serve the static build
 RUN npm install -g serve
 CMD ["serve", "-s", "build", "-l", "3000"]

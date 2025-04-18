@@ -4,10 +4,13 @@ FROM node:18-alpine
 WORKDIR /app
 
 COPY package.json package-lock.json ./
-RUN npm install
 
 # Copy .env.production explicitly
 COPY .env.production .env
+
+RUN npm install
+
+
 
 COPY . .
 

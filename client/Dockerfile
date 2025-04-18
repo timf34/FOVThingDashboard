@@ -6,6 +6,9 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm install
 
+# Copy .env.production explicitly
+COPY .env.production .env
+
 COPY . .
 
 # Build the React app

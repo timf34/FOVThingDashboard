@@ -1,39 +1,64 @@
-from awscrt import mqtt
-from awsiot import mqtt_connection_builder
+from __future__ import annotations
+
+import threading
+import time
 from concurrent import futures
+from typing import Optional, Callable
+
+from awscrt import mqtt, exceptions as awscrt_exceptions          # 🆕  exceptions alias
+from awsiot import mqtt_connection_builder
+
 from aws_iot.IOTContext import IOTContext, IOTCredentials
-from typing import Optional
 
 
 class IOTClient:
+    """
+    Thin wrapper around the AWS‑CRT MQTT connection that
+
+    * keeps one reconnect loop alive at a time
+    * remembers the last subscribe handler so we can re‑subscribe after a reconnect
+    * surfaces a simple `publish/subscribe` API
+    """
+
+    # instance attributes just for the type checker
     _mqtt_connection: mqtt.Connection
     context: IOTContext
     credentials: IOTCredentials
 
+    # --- ctor --------------------------------------------------------------- #
+
     def __init__(
-            self,
-            context: IOTContext,
-            credentials: IOTCredentials,
-            subscribe_topic: str = None,
-            publish_topic: Optional[str] = None,
-            ca_bytes: Optional[bytes] = None
+        self,
+        context: IOTContext,
+        credentials: IOTCredentials,
+        subscribe_topic: str | None = None,
+        publish_topic: str | None = None,
+        ca_bytes: Optional[bytes] = None,
     ):
         self.context = context
         self.credentials = credentials
-        self.subscribe_topic: str = subscribe_topic
-        self.publish_topic: Optional[str] = publish_topic
 
-        print(f"Creating IOTClient with subscribe topic: {self.subscribe_topic} and publish topic: {self.publish_topic}")
+        self.subscribe_topic = subscribe_topic
+        self.publish_topic = publish_topic
 
-        # Docs: https://aws.github.io/aws-iot-device-sdk-python-v2/awsiot/mqtt_connection_builder.html#awsiot.mqtt_connection_builder.mtls_from_path
+        self.connected: bool = False
+        self._handler: Optional[Callable] = None
+        self._reconnect_lock = threading.Lock()
+        self._reconnect_thread: Optional[threading.Thread] = None
+
+        print(
+            f"Creating IOTClient with subscribe topic: {self.subscribe_topic} "
+            f"and publish topic: {self.publish_topic}"
+        )
+
         self._mqtt_connection = mqtt_connection_builder.mtls_from_path(
             endpoint=self.credentials.endpoint,
             port=self.credentials.port,
             cert_filepath=self.credentials.cert_path,
             pri_key_filepath=self.credentials.priv_key_path,
             ca_filepath=self.credentials.ca_path,
-            client_bootstrap=self.context.client_bootstrap,
             ca_bytes=ca_bytes,
+            client_bootstrap=self.context.client_bootstrap,
             on_connection_interrupted=self._on_conn_interrupted,
             on_connection_resumed=self._on_conn_resumed,
             client_id=self.credentials.client_id,
@@ -41,89 +66,101 @@ class IOTClient:
             keep_alive_secs=30,
         )
 
-        self.connected: bool = False
+    # --- public helpers ----------------------------------------------------- #
 
     def connect(self) -> futures.Future:
-        print(f"Connecting to endpoint '{self.credentials.endpoint}' with client ID '{self.credentials.client_id}'")
-        connection_future = self._mqtt_connection.connect()
-        connection_future.result()  # block and wait for the result of the future
-        print(f"Successfully connected to endpoint '{self.credentials.endpoint}'")
+        print(
+            f"Connecting to endpoint '{self.credentials.endpoint}' "
+            f"with client ID '{self.credentials.client_id}'"
+        )
+        fut = self._mqtt_connection.connect()
+        fut.result()  # block
         self.connected = True
-        return connection_future
+        print("Successfully connected")
+        return fut
 
     def disconnect(self) -> futures.Future:
         print("Disconnecting")
-        disconnection_future = self._mqtt_connection.disconnect()
-        disconnection_future.result()  # block and wait for the result of the future
-        print(f"Disconnected successfully from endpoint '{self.credentials.endpoint}'")
-        return disconnection_future
+        fut = self._mqtt_connection.disconnect()
+        fut.result()
+        self.connected = False
+        return fut
 
-    def publish(self, topic: str = None, payload: str = None) -> Optional[futures.Future]:
-        if self.connected is False:
-            print("Not connected! Can't publish anything")
+    # ----------------------------------------------------------------------- #
+
+    def publish(self, topic: str | None = None, payload: str | None = None) -> Optional[futures.Future]:
+        if not self.connected:
+            print("Not connected – publish skipped")
             return None
 
+        topic = topic or self.publish_topic
         if topic is None:
-            if self.publish_topic is not None:
-                topic = self.publish_topic
-            else:
-                raise ValueError("No publish topic provided!")
+            raise ValueError("No publish topic provided")
 
         if payload is None:
-            print("No payload provided! Won't be able to publish anything")
+            print("Empty payload – publish skipped")
 
-        publish_future, packet_id = self._mqtt_connection.publish(
-            topic=topic,
-            payload=payload,
-            qos=mqtt.QoS.AT_MOST_ONCE,
+        fut, packet_id = self._mqtt_connection.publish(
+            topic=topic, payload=payload, qos=mqtt.QoS.AT_MOST_ONCE
         )
-        print(f"Published message: {payload} to topic: {topic} with packet id: {packet_id}")
-        return publish_future
+        print(f"Published to '{topic}' (id={packet_id})")
+        return fut
 
-    def subscribe(self, topic: str = None, handler=None) -> futures.Future:
+    def subscribe(self, topic: str | None = None, handler: Callable | None = None) -> futures.Future:
+        topic = topic or self.subscribe_topic
         if topic is None:
-            if self.subscribe_topic is not None:
-                topic = self.subscribe_topic
-            else:
-                raise ValueError("No subscribe topic provided!")
+            raise ValueError("No subscribe topic provided")
 
-        print(f"Subscribing to topic '{topic}'")
         if handler is None:
-            print("No handler provided! Won't be able to handle incoming messages - only sending them")
+            print("⚠  Subscribing without a handler – incoming messages will be dropped")
+        else:
+            self._handler = handler    # 🆕 remember for re‑subscribe
 
-        # Docs: https://awslabs.github.io/aws-crt-python/api/mqtt.html#awscrt.mqtt.Connection.subscribe
-        subscribe_future, packet_id = self._mqtt_connection.subscribe(
-            topic=topic,
-            qos=mqtt.QoS.AT_MOST_ONCE,
-            callback=handler,
+        fut, packet_id = self._mqtt_connection.subscribe(
+            topic=topic, qos=mqtt.QoS.AT_MOST_ONCE, callback=handler
         )
+        qos = fut.result()["qos"]
+        print(f"Subscribed to '{topic}' (id={packet_id}, qos={qos})")
+        return fut
 
-        subscribe_result = subscribe_future.result()  # block and wait for the result of the future
-        print(
-            f"Successfully subscribed to topic '{topic}' with "
-            f"packet id '{packet_id}' and qos `{str(subscribe_result['qos'])}`"
-        )
-
-        return subscribe_future
-
-    # TODO: Implement this: https://github.com/aws/aws-iot-device-sdk-python-v2/blob/main/samples/pubsub.py
-    def _on_conn_resumed(self, connection, return_code, session_present, **kwargs):
-        pass
+    # --- internal callbacks ------------------------------------------------- #
 
     def _on_conn_interrupted(self, connection, error, **kwargs):
         print("MQTT connection interrupted:", error)
         self.connected = False
-        # Start a background loop that keeps trying until it succeeds
-        threading.Thread(target=self._reconnect_loop, daemon=True).start()
+
+        # ensure only ONE reconnect loop is running
+        with self._reconnect_lock:
+            if self._reconnect_thread and self._reconnect_thread.is_alive():
+                return  # already trying
+            self._reconnect_thread = threading.Thread(
+                target=self._reconnect_loop, daemon=True
+            )
+            self._reconnect_thread.start()
+
+    def _on_conn_resumed(self, connection, return_code, session_present, **kwargs):
+        """Called by CRT after it automatically reconnects."""
+        print("MQTT connection resumed – session_present =", session_present)
+        self.connected = True
+
+        # If the broker did NOT persist our session we must re‑subscribe
+        if not session_present and self.subscribe_topic and self._handler:
+            try:
+                self.subscribe(self.subscribe_topic, handler=self._handler)
+            except Exception as exc:
+                print("Re‑subscribe failed:", exc)
+
+    # --- reconnect loop ----------------------------------------------------- #
 
     def _reconnect_loop(self):
+        """Background task started after an interruption."""
         while not self.connected:
             try:
-                # Block until the reconnect attempt finishes
                 print("Trying to reconnect …")
                 self._mqtt_connection.reconnect().result()
                 print("Re‑connected; resubscribing")
-                self.subscribe(self.subscribe_topic, handler=self._handler)
+                if self.subscribe_topic and self._handler:
+                    self.subscribe(self.subscribe_topic, handler=self._handler)
                 self.connected = True
             except awscrt_exceptions.AwsCrtError as e:
                 print("Reconnect failed:", e)

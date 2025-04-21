@@ -110,13 +110,21 @@ class IOTClient:
     def _on_conn_resumed(self, connection, return_code, session_present, **kwargs):
         pass
 
-    @staticmethod
-    def _on_conn_interrupted(connection, error, **kwargs):
-        # Reconnect
-        # TODO: At the moment, when this is raised, the code continues as normal, which is not the desired behaviour
-        #  as its not clear that things will not be working (messages are not getting sent!)
-        #  We also have no 'reconnection' code implemented
-        print(f"Connection interrupted: {str(error)}")
-        raise ConnectionError("Connection interrupted. Ensure client ID isn't beind used elsewhere. Reconnecting...")
+    def _on_conn_interrupted(self, connection, error, **kwargs):
+        print("MQTT connection interrupted:", error)
+        self.connected = False
+        # Start a background loop that keeps trying until it succeeds
+        threading.Thread(target=self._reconnect_loop, daemon=True).start()
 
-
+    def _reconnect_loop(self):
+        while not self.connected:
+            try:
+                # Block until the reconnect attempt finishes
+                print("Trying to reconnect …")
+                self._mqtt_connection.reconnect().result()
+                print("Re‑connected; resubscribing")
+                self.subscribe(self.subscribe_topic, handler=self._handler)
+                self.connected = True
+            except awscrt_exceptions.AwsCrtError as e:
+                print("Reconnect failed:", e)
+                time.sleep(5)

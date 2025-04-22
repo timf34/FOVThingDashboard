@@ -21,3 +21,10 @@ class FOVDashboardConfig:
         self.cert_path: str = "./aws-iot-certs/fov-dashboard-dublin-client/certificate.pem.crt"
         self.private_key_path: str = "./aws-iot-certs/fov-dashboard-dublin-client/private.pem.key"
         self.root_ca_path: str = "./aws-iot-certs/fov-dashboard-dublin-client/AmazonRootCA1.pem"
+
+        # ---- latency ---------------------------------------------------- #
+        # Ping is published to a device‑specific topic;       example:
+        # All tablets subscribe to ONE “publish” topic. We send pings there.
+        # Tablets echo back on a (still shared) echo topic.
+        self.latency_ping_topic: str  = "dalymount_IRL/pub"
+        self.latency_echo_topic: str  = "esp32/echo"

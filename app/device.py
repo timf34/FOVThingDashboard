@@ -37,6 +37,7 @@ class DeviceManager:
             'wifiConnected': device.wifi_connected,
             'batteryCharge': float(latest_values.get('battery', 0)),
             'temperature': float(latest_values.get('temperature', 0)),
+            'latencyMs': float(latest_values.get('latency', -1)),   #  -1 = unknown
             'firmwareVersion': latest_values.get('version', 'N/A'),
             'otaStatus': latest_values.get('ota', 'N/A'),
             'lastMessageTime': self._serialize_datetime(device.last_message_time),

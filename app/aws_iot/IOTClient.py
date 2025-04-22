@@ -78,13 +78,19 @@ class IOTClient:
     # ------------------------------------------------------------------ #
     # internal callbacks
     # ------------------------------------------------------------------ #
-    def _on_interrupted(self, *_):
+    def _on_interrupted(self, *args, **kwargs):
         print("MQTT interrupted")
         self.connected = False
         with self._reconnect_lock:
             threading.Thread(target=self._reconnect_loop, daemon=True).start()
 
-    def _on_resumed(self, _connection, return_code, session_present, **_):
+    def _on_resumed(self, *args, **kwargs):
+        # args might be (connection, return_code, session_present)
+        # or (return_code, session_present), or come as keywords
+        if len(args) >= 3:
+            session_present = args[2]
+        else:
+            session_present = kwargs.get("session_present", False)
         print("MQTT resumed; session_present =", session_present)
         self.connected = True
         if not session_present:
@@ -94,12 +100,11 @@ class IOTClient:
     def _reconnect_loop(self) -> None:
         while not self.connected:
             try:
-                print("… trying reconnect")
-                self._mqtt.reconnect().result()
-                self.connected = True
+                print("… trying reconnect via connect()")
+                self.connect()
                 print("… reconnect ok")
                 self._resubscribe_all()
-            except awscrt_exceptions.AwsCrtError as exc:
+            except Exception as exc:
                 print("Reconnect failed:", exc)
                 time.sleep(5)
 

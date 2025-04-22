@@ -1,1 +1,4 @@
 .\venv\Scripts\activate
+
+.env:
+```

@@ -62,7 +62,8 @@ class IOTClient:
         if not self.connected:
             print("⚠ publish skipped – not connected")
             return
-        self._mqtt.publish(topic=topic, payload=payload, qos=mqtt.QoS.AT_MOST_ONCE)
+        publish_future, packet_id = self._mqtt.publish(topic=topic, payload=payload, qos=mqtt.QoS.AT_MOST_ONCE)
+        print(f"Published message: {payload} to topic: {topic} with packet id: {packet_id}")
 
     # ---- subscribe (fixed) ------------------------------------------- #
     def subscribe(self, topic: str, handler: Handler) -> None:

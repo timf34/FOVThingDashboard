@@ -1,5 +1,6 @@
 import asyncio
 import os
+import time
 from datetime import timezone
 from fastapi import FastAPI, WebSocket, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -18,6 +19,10 @@ app = FastAPI()
 SessionFactory = init_db()
 device_manager = DeviceManager(SessionFactory)
 config = FOVDashboardConfig()
+
+# from awscrt import io
+# io.init_logging(io.LogLevel.Trace, 'stderr')     # <— full wire‑level trace
+
 
 app.add_middleware(
     CORSMiddleware,
@@ -83,6 +88,19 @@ def start_iot_client():
     iot_client.subscribe(topic=config.battery_topic, handler=message_handler)
     iot_client.subscribe(topic=config.temperature_topic, handler=message_handler)
     iot_client.subscribe(topic=config.ota_topic, handler=message_handler)
+
+    def watchdog():
+        while True:
+            if not iot_client.connected:
+                print("⚠️  MQTT lost – forcing reconnect")
+                try:
+                    iot_client._mqtt.reconnect().result()
+                except Exception as exc:
+                    print("reconnect failed:", exc)
+            time.sleep(10)
+
+    Thread(target=watchdog, daemon=True).start()
+
 
 
 @app.get("/api/status")

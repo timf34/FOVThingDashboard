@@ -26,14 +26,14 @@ def initialize_iot_manager() -> IOTClient:
         ca_path=config.root_ca_path
     )
 
-    return IOTClient(iot_context, iot_credentials, publish_topic="hello")
+    return IOTClient(iot_context, iot_credentials)
 
 
 def main():
     iot_client = initialize_iot_manager()
     iot_client.connect()
 
-    iot_client.publish(topic="eu-west-1/aviva/fov-marvel-tablet-test/version",
+    iot_client.publish(topic="eu-west-1/aviva/fov-marvel-tablet-test-2/version",
                        payload=json.dumps({"Version": "1.1.0"}))
 
     while True:
@@ -43,10 +43,10 @@ def main():
         temp_payload = json.dumps({"Temperature": temperature})
         battery_payload = json.dumps({"Battery Percentage": battery})
 
-        iot_client.publish(topic="eu-west-1/aviva/fov-marvel-tablet-test/temperature", payload=temp_payload)
-        iot_client.publish(topic="eu-west-1/aviva/fov-marvel-tablet-test/battery", payload=battery_payload)
+        iot_client.publish(topic="eu-west-1/aviva/fov-marvel-tablet-test-2/temperature", payload=temp_payload)
+        iot_client.publish(topic="eu-west-1/aviva/fov-marvel-tablet-test-2/battery", payload=battery_payload)
 
-        time.sleep(60)
+        time.sleep(5)
 
 
 if __name__ == "__main__":

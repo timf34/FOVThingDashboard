@@ -67,7 +67,7 @@ def initialize_iot_client() -> IOTClient:
     return IOTClient(iot_context, iot_credentials)
 
 
-def message_handler(topic, payload):
+def message_handler(topic, payload, *a, **kw):
     try:
         message_str = payload.decode("utf-8")
         print(f"Received message from topic '{topic}': {message_str}")
@@ -154,19 +154,6 @@ def start_iot_client():
             time.sleep(PING_INTERVAL_S)
 
     Thread(target=ping_loop, name="latency-ping", daemon=True).start()
-
-    def watchdog():
-        while True:
-            if not iot_client.connected:
-                print("⚠️  MQTT lost – forcing reconnect")
-                try:
-                    iot_client._mqtt.reconnect().result()
-                except Exception as exc:
-                    print("reconnect failed:", exc)
-            time.sleep(10)
-
-    Thread(target=watchdog, daemon=True).start()
-
 
 
 @app.get("/api/status")

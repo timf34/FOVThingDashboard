@@ -81,8 +81,7 @@ class IOTClient:
     def _on_interrupted(self, *args, **kwargs):
         print("MQTT interrupted")
         self.connected = False
-        with self._reconnect_lock:
-            threading.Thread(target=self._reconnect_loop, daemon=True).start()
+        # No manual reconnect – the CRT event-loop handles it automatically.
 
     def _on_resumed(self, *args, **kwargs):
         # args might be (connection, return_code, session_present)
@@ -97,30 +96,6 @@ class IOTClient:
             self._resubscribe_all()
 
     # ------------------------------------------------------------------ #
-    def _reconnect_loop(self) -> None:
-        """Background task – wait until the automatic CRT reconnect
-        succeeds; if that fails, *then* call explicit `reconnect()`."""
-        while not self.connected:
-            try:
-                print("… waiting for automatic reconnect")
-                # Give the SDK 5 s to reconnect by itself
-                for _ in range(5):
-                    if self.connected:
-                        break
-                    time.sleep(1)
-
-                if self.connected:
-                    break  # auto-reconnect succeeded
-
-                print("… SDK still disconnected – trying manual reconnect()")
-                self._mqtt.reconnect().result()     # ✅ correct API
-            except awscrt_exceptions.AwsCrtError as exc:
-                print("Manual reconnect failed:", exc)
-                time.sleep(5)
-
-        if self.connected:
-            self._resubscribe_all()
-
     def _resubscribe_all(self) -> None:
         for topic, handler in self._subs.items():
             try:

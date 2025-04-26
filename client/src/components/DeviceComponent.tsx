@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BatteryIcon, CpuIcon, ThermometerIcon, WifiIcon } from "lucide-react";
+import { BatteryIcon, CpuIcon, ThermometerIcon, WifiIcon, ClockIcon } from "lucide-react";
 import DeviceHistoryModal from './DeviceHistoryModal';
 
 interface HistoryEntry {
@@ -15,9 +15,17 @@ interface DeviceProps {
     batteryCharge?: number;
     temperature?: number;
     firmwareVersion?: string;
+    latencyMs?: number;
 }
 
-function DeviceComponent({ name, wifiConnected, batteryCharge, temperature, firmwareVersion }: DeviceProps) {
+function DeviceComponent({
+    name,
+    wifiConnected,
+    batteryCharge,
+    temperature,
+    firmwareVersion,
+    latencyMs = -1,
+}: DeviceProps) {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [history, setHistory] = useState<HistoryEntry[]>([]);
     const [isLoading, setIsLoading] = useState(false);
@@ -94,6 +102,14 @@ function DeviceComponent({ name, wifiConnected, batteryCharge, temperature, firm
                     <ThermometerIcon className="h-5 w-5" />
                     <span>Temperature: {temperature}°C</span>
                 </div>
+
+                {latencyMs >= 0 && (
+                    <div className="flex items-center space-x-2">
+                        <ClockIcon className="h-5 w-5" />
+                        <span>RTT: {latencyMs.toFixed(1)} ms</span>
+                    </div>
+                )}
+
                 <div className="flex items-center space-x-2">
                     <CpuIcon className="h-5 w-5" />
                     <span>Firmware: {firmwareVersion}</span>

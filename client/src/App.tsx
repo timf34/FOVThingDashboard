@@ -11,6 +11,7 @@ interface Device {
   otaUpdateStatus: string;
   lastMessageTime: string;
   firstSeen: string;
+  latencyMs?: number;
 }
 
 const App: React.FC = () => {
@@ -113,6 +114,7 @@ const App: React.FC = () => {
             batteryCharge={device.batteryCharge}
             temperature={device.temperature}
             firmwareVersion={device.firmwareVersion}
+            latencyMs={device.latencyMs}
           />
         ))}
       </div>

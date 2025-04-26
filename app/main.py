@@ -1,6 +1,8 @@
 import asyncio
+import json
 import os
 import time
+from collections import defaultdict
 from datetime import timezone
 from fastapi import FastAPI, WebSocket, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -19,6 +21,11 @@ app = FastAPI()
 SessionFactory = init_db()
 device_manager = DeviceManager(SessionFactory)
 config = FOVDashboardConfig()
+
+# store send-timestamp per ping-id
+_pending_pings: dict[str, float] = {}
+PING_INTERVAL_S = 60          # one RTT measurement per minute
+PING_TIMEOUT_S   = 120        # throw away unanswered pings after 2 min
 
 # from awscrt import io
 # io.init_logging(io.LogLevel.Trace, 'stderr')     # <— full wire‑level trace
@@ -79,6 +86,45 @@ def message_handler(topic, payload):
         traceback.print_exc()
 
 
+def latency_echo_handler(topic, payload, *a, **kw):
+    try:
+        message_str = payload.decode("utf-8")
+        print(f"Received echo from topic '{topic}': {message_str}")
+        
+        msg = json.loads(message_str)
+        ping_id = msg["ID"]
+        
+        # Try to get device ID from the payload first (new firmware)
+        # If not available, try to extract from topic (old firmware format might be: esp32/{device_id}/echo)
+        if "device_id" in msg:
+            dev = msg["device_id"]
+        else:
+            # Try to extract from topic - format might be "esp32/echo" or "esp32/{device_id}/echo"
+            parts = topic.split('/')
+            if len(parts) >= 3:
+                dev = parts[1]  # Assuming format like "esp32/{device_id}/echo"
+            else:
+                dev = "unknown"  # Fallback
+                
+        print(f"Echo from device: {dev}, ping ID: {ping_id}")
+
+        if ping_id not in _pending_pings:
+            print(f"Unknown ping ID: {ping_id}, ignoring")
+            return                       # stale/unknown echo ➜ ignore
+
+        rtt_ms = (time.time() - _pending_pings.pop(ping_id)) * 1000
+        print(f"RTT {dev}: {rtt_ms:.1f} ms")
+
+        # store + stream to front-end
+        state = device_manager.update_device(dev, "latency", f"{rtt_ms:.2f}")
+        asyncio.run(WebSocketManager.notify_clients(dev, state))
+
+    except Exception as exc:
+        print(f"latency-echo handler failed: {exc}")
+        import traceback
+        traceback.print_exc()
+
+
 def start_iot_client():
     """Start the IoT Client, connect, and subscribe to topics."""
     iot_client = initialize_iot_client()
@@ -89,6 +135,25 @@ def start_iot_client():
     iot_client.subscribe(topic=config.battery_topic, handler=message_handler)
     iot_client.subscribe(topic=config.temperature_topic, handler=message_handler)
     iot_client.subscribe(topic=config.ota_topic, handler=message_handler)
+    iot_client.subscribe(topic=config.latency_echo_topic, handler=latency_echo_handler)
+
+    # latency  –  publish one ping per connected device every minute
+    def ping_loop() -> None:
+        import uuid
+        while True:
+            now = time.time()
+            ping_id = str(uuid.uuid4())
+
+            payload = json.dumps({"ID": ping_id, "ts": now})
+            try:
+                iot_client.publish(topic=config.latency_ping_topic, payload=payload)
+                _pending_pings[ping_id] = now         # remember when we sent it
+            except Exception as exc:
+                print("latency-ping publish failed:", exc)
+
+            time.sleep(PING_INTERVAL_S)
+
+    Thread(target=ping_loop, name="latency-ping", daemon=True).start()
 
     def watchdog():
         while True:
@@ -221,6 +286,17 @@ async def startup_event():
 
     # Start the device status checker
     asyncio.create_task(check_device_status())
+
+    async def _latency_housekeeping():
+        while True:
+            cutoff = time.time() - PING_TIMEOUT_S
+            old = [k for k, ts in _pending_pings.items() if ts < cutoff]
+            for k in old:
+                _pending_pings.pop(k, None)
+            await asyncio.sleep(PING_TIMEOUT_S)
+
+    asyncio.create_task(_latency_housekeeping())
+
 
 
 if __name__ == "__main__":

@@ -1,4 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import DeviceComponent from './components/DeviceComponent';
 import './index.css';
 
@@ -19,6 +21,11 @@ const App: React.FC = () => {
   const [connectionStatus, setConnectionStatus] = useState<string>('Connecting...');
   const ws = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  /** remember the toast we raised for each offline device so we can:
+   *  – avoid duplicates
+   *  – close it once the device is back online                                       */
+  const offlineToastIds = useRef<Record<string, React.ReactText>>({});
 
   const connectWebSocket = () => {
     if (ws.current?.readyState === WebSocket.OPEN) return;
@@ -52,10 +59,34 @@ const App: React.FC = () => {
 
       try {
         const data = JSON.parse(event.data);
-        setDevices(prevDevices => ({
-          ...prevDevices,
-          [data.topic]: data.message
-        }));
+        setDevices(prevDevices => {
+          const prev = prevDevices[data.topic];
+          const next = { ...prev, ...data.message };
+
+          /* ---   show toast on Connected ➜ Disconnected  --- */
+          if (prev && prev.wifiConnected && !next.wifiConnected) {
+            // only once per device
+            if (!offlineToastIds.current[next.name]) {
+              const id = toast.error(`${next.name} went offline`, {
+                autoClose: 300_000,            // 5 min
+                closeOnClick: true,
+                onClose: () => { delete offlineToastIds.current[next.name]; },
+              });
+              offlineToastIds.current[next.name] = id;
+            }
+          }
+
+          /* optional: clear the toast when the device reconnects */
+          if (prev && !prev.wifiConnected && next.wifiConnected) {
+            const id = offlineToastIds.current[next.name];
+            if (id) {
+              toast.dismiss(id);
+              delete offlineToastIds.current[next.name];
+            }
+          }
+
+          return { ...prevDevices, [data.topic]: next };
+        });
       } catch (error) {
         console.error('Error parsing WebSocket message:', error);
       }
@@ -118,6 +149,15 @@ const App: React.FC = () => {
           />
         ))}
       </div>
+
+      {/* Toast portal */}
+      <ToastContainer
+        position="bottom-right"
+        newestOnTop
+        closeOnClick
+        limit={5}          /* keep the UI tidy */
+        draggable
+      />
     </div>
   );
 };

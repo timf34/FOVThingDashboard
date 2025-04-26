@@ -260,7 +260,10 @@ async def get_device_history(
 async def check_device_status():
     """Periodic task to update device WiFi status"""
     while True:
-        device_manager.check_wifi_status()
+        changed = device_manager.check_wifi_status()     # 🆕
+        for name in changed:
+            # stream the new state to all connected browsers
+            await WebSocketManager.notify_clients(name, device_manager.devices[name])
         await asyncio.sleep(30)
 
 

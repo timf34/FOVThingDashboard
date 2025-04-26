@@ -161,6 +161,7 @@ class DeviceManager:
     def check_wifi_status(self):
         """Update wifi status for all devices based on last message time"""
         session = self.session_factory()
+        changed: list[str] = []          # 🆕 collect devices whose flag flips
         try:
             threshold = datetime.utcnow() - timedelta(seconds=61)
             devices = session.query(Device).all()
@@ -172,7 +173,10 @@ class DeviceManager:
                 if was_connected != is_connected:
                     device.wifi_connected = is_connected
                     self.devices[device.name]['wifiConnected'] = is_connected
+                    changed.append(device.name)   # 🆕
 
             session.commit()
         finally:
             session.close()
+
+        return changed                      # 🆕

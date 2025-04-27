@@ -1,58 +1,72 @@
-cat > /etc/nginx/sites-available/fovdashboard <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+# ─────────── CONFIGURE ───────────
+DOMAIN="aviva.fovdashboard.com"
+EMAIL="timf34@gmail.com"            # used by Certbot
+NGINX_SITE="/etc/nginx/sites-available/fovdashboard"
+
+# ─────────── 1. DROP NGINX CONFIG ───────────
+cat > "$NGINX_SITE" <<'EOF'
 server {
     listen 80;
-    server_name aviva.fovdashboard.com;
-    return 301 https://$host$request_uri;         # force HTTPS
+    server_name '"$DOMAIN"';
+    return 301 https://$host$request_uri;
 }
 
 server {
     listen 443 ssl http2;
-    server_name aviva.fovdashboard.com;
+    server_name '"$DOMAIN"';
 
-    # --- LetsEncrypt certs will be dropped here in the next step ---
-    ssl_certificate     /etc/letsencrypt/live/aviva.fovdashboard.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/aviva.fovdashboard.com/privkey.pem;
+    ssl_certificate     /etc/letsencrypt/live/'"$DOMAIN"'/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/'"$DOMAIN"'/privkey.pem;
     include /etc/letsencrypt/options-ssl-nginx.conf;
     ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
 
-    # static React build
     location / {
         proxy_pass http://localhost:3000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 
-    # FastAPI REST
     location /api/ {
         proxy_pass http://localhost:8000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 
-    # FastAPI Web-Sockets
     location /ws {
         proxy_pass http://localhost:8000/ws;
         proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_set_header Host $host;
-        proxy_read_timeout   3600s;           # keep dashboards open for a long time
+        proxy_set_header Upgrade           $http_upgrade;
+        proxy_set_header Connection        "upgrade";
+        proxy_set_header Host              $host;
+        proxy_read_timeout   3600s;
         proxy_send_timeout   3600s;
-        proxy_buffering off;                  # disable buffers for WS
+        proxy_buffering      off;
     }
 }
 EOF
 
-ln -sf /etc/nginx/sites-available/fovdashboard /etc/nginx/sites-enabled/
+# ─────────── 2. ENABLE SITE ───────────
+ln -sf "$NGINX_SITE" /etc/nginx/sites-enabled/fovdashboard
 nginx -t && systemctl reload nginx
 
+# ─────────── 3. INSTALL CERTBOT & REQUEST CERT ───────────
+apt update
 apt install -y certbot python3-certbot-nginx
-certbot --nginx -d aviva.fovdashboard.com --non-interactive --agree-tos -m you@example.com
+certbot --nginx \
+  --agree-tos \
+  --non-interactive \
+  --redirect \
+  --email "$EMAIL" \
+  -d "$DOMAIN"
 
+# ─────────── 4. FIREWALL ───────────
 ufw allow OpenSSH
-ufw allow 'Nginx Full'    # ports 80 & 443
+ufw allow 'Nginx Full'
 ufw --force enable

@@ -49,3 +49,10 @@ EOF
 
 ln -sf /etc/nginx/sites-available/fovdashboard /etc/nginx/sites-enabled/
 nginx -t && systemctl reload nginx
+
+apt install -y certbot python3-certbot-nginx
+certbot --nginx -d aviva.fovdashboard.com --non-interactive --agree-tos -m you@example.com
+
+ufw allow OpenSSH
+ufw allow 'Nginx Full'    # ports 80 & 443
+ufw --force enable

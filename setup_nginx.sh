@@ -1,12 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# ─────────── CONFIGURE ───────────
 DOMAIN="aviva.fovdashboard.com"
-EMAIL="timf34@gmail.com"            # used by Certbot
+EMAIL="you@example.com"
 NGINX_SITE="/etc/nginx/sites-available/fovdashboard"
 
-# ─────────── 1. DROP NGINX CONFIG ───────────
+# 1) Make sure the include files exist
+apt update
+apt install -y certbot python3-certbot-nginx ufw
+
+# 2) Drop the nginx config (now that /etc/letsencrypt/options-ssl-nginx.conf is there)
 cat > "$NGINX_SITE" <<'EOF'
 server {
     listen 80;
@@ -52,21 +55,18 @@ server {
 }
 EOF
 
-# ─────────── 2. ENABLE SITE ───────────
-ln -sf "$NGINX_SITE" /etc/nginx/sites-enabled/fovdashboard
+ln -sf "$NGINX_SITE" /etc/nginx/sites-enabled/
 nginx -t && systemctl reload nginx
 
-# ─────────── 3. INSTALL CERTBOT & REQUEST CERT ───────────
-apt update
-apt install -y certbot python3-certbot-nginx
+# 3) Obtain the cert and wire it into nginx
 certbot --nginx \
-  --agree-tos \
-  --non-interactive \
   --redirect \
-  --email "$EMAIL" \
+  --non-interactive \
+  --agree-tos \
+  -m "$EMAIL" \
   -d "$DOMAIN"
 
-# ─────────── 4. FIREWALL ───────────
+# 4) Firewall
 ufw allow OpenSSH
 ufw allow 'Nginx Full'
 ufw --force enable

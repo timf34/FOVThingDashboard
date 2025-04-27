@@ -2,7 +2,7 @@
 set -euo pipefail
 
 DOMAIN="aviva.fovdashboard.com"
-EMAIL="you@example.com"
+EMAIL="timf34@gmail.com"
 NGINX_SITE="/etc/nginx/sites-available/fovdashboard"
 
 # 1) Make sure the include files exist

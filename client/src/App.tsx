@@ -30,8 +30,12 @@ const App: React.FC = () => {
   const connectWebSocket = () => {
     if (ws.current?.readyState === WebSocket.OPEN) return;
 
-    const wsUrl = process.env.REACT_APP_WS_URL || 'ws://localhost:8000/ws';
-    console.log('Connecting to WebSocket:', wsUrl);
+    const wsUrl =
+      process.env.REACT_APP_WS_URL ||
+      `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${
+        window.location.host
+    }/ws`;
+      console.log('Connecting to WebSocket:', wsUrl);
     ws.current = new WebSocket(wsUrl);
 
     ws.current.onopen = () => {

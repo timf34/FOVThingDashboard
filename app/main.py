@@ -38,6 +38,7 @@ app.add_middleware(
         "https://www.fovdashboard.com",
         "http://fovdashboard.com",
         "https://aviva.fovdashboard.com",
+        "https://marvel.fovdashboard.com",
         "http://localhost",
         "http://localhost:3000",
         "http://localhost:8000",

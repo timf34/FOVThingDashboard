@@ -88,7 +88,11 @@ class DeviceManager:
             try:
                 parsed_value = json.loads(value)
                 if metric_type == 'battery':
-                    actual_value = str(parsed_value.get('Battery Percentage', 0))
+                     # Accept both for robustness
+                     actual_value = str( 
+                        parsed_value.get('Battery_Percentage',
+                        parsed_value.get('Battery Percentage', 0))
+                    )
                 elif metric_type == 'temperature':
                     actual_value = str(parsed_value.get('Temperature', 0))
                 else:

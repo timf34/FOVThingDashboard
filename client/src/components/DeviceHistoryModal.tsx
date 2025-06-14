@@ -58,7 +58,9 @@ const DeviceHistoryModal: React.FC<DeviceHistoryModalProps> = ({
     try {
       const parsed = JSON.parse(entry.value);
       if (entry.metricType === 'battery') {
-        return `${parsed['Battery Percentage']}%`;
+        const pct =
+          parsed['Battery_Percentage'] ?? parsed['Battery Percentage'] ?? parsed;
+        return `${pct}%`;
       } else if (entry.metricType === 'temperature') {
         return `${parsed['Temperature']}°C`;
       }

@@ -2,6 +2,7 @@ from datetime import datetime
 from sqlalchemy import create_engine, Column, Integer, String, Boolean, DateTime, ForeignKey, Index
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, sessionmaker
+import os
 
 Base = declarative_base()
 
@@ -58,6 +59,8 @@ class DeviceLog(Base):
 
 def init_db(db_url='sqlite:///fov_dashboard.db'):
     """Initialize database and return session factory"""
-    engine = create_engine(db_url, connect_args={"check_same_thread": False})
+    DB_PATH = os.getenv("DB_PATH", "/app/db/fov_dashboard.db")
+    engine = create_engine(f"sqlite:///{DB_PATH}", connect_args={"check_same_thread": False})
+
     Base.metadata.create_all(engine)
     return sessionmaker(autocommit=False, autoflush=False, bind=engine)

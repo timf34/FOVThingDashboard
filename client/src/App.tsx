@@ -139,7 +139,9 @@ const App: React.FC = () => {
       <h1 className="text-2xl font-semibold">FOV Dashboard</h1>
       <p>Connection Status: {connectionStatus}</p>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {Object.entries(devices).map(([deviceName, device]) => (
+      {Object.entries(devices)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([deviceName, device]) => (
           <DeviceComponent
             key={deviceName}
             name={device.name}

@@ -1,7 +1,11 @@
 version: '3'
 services:
   frontend:
-    build: ./client
+    build: 
+      context: ./client
+      args:
+        REACT_APP_API_URL: http://localhost:8000 # TODO: change to https://aviva.fovdashboard.com when on digital ocean
+        REACT_APP_WS_URL: ws://localhost:8000/ws
     ports:
       - "3000:3000"
     container_name: fov-frontend
@@ -15,6 +19,7 @@ services:
     restart: always
     volumes:
       - ./app/aws-iot-certs:/app/aws-iot-certs
+      - ./data/fov_dashboard.db:/app/fov_dashboard.db
     environment:
       - IOT_CLIENT_ID=FOVDashboardClient-Droplet
     healthcheck:

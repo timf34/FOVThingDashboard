@@ -1,4 +1,5 @@
 from datetime import datetime
+from pathlib import Path   
 from sqlalchemy import create_engine, Column, Integer, String, Boolean, DateTime, ForeignKey, Index
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, sessionmaker
@@ -56,11 +57,24 @@ class DeviceLog(Base):
         Index('idx_device_metric_time', 'device_id', 'metric_type', 'timestamp'),
     )
 
+def init_db() -> sessionmaker:
+    """
+    Initialise the SQLite DB and return a Session factory.
 
-def init_db(db_url='sqlite:///fov_dashboard.db'):
-    """Initialize database and return session factory"""
-    DB_PATH = os.getenv("DB_PATH", "/app/db/fov_dashboard.db")
-    engine = create_engine(f"sqlite:///{DB_PATH}", connect_args={"check_same_thread": False})
+    • If $DB_PATH is set → use that.
+    • Otherwise create ./fov_dashboard.db next to this file.
+    • Always create the parent directory if it doesn't exist.
+    """
+    default_path = Path(__file__).with_name("fov_dashboard.db")
+    db_path      = Path(os.getenv("DB_PATH", default_path)).expanduser().resolve()
 
+    # Make sure the folder exists (works on Windows & Linux)
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Path must be POSIX-style for SQLAlchemy URI; as_posix() does that
+    db_url = f"sqlite:///{db_path.as_posix()}"
+    print(f"🚀 Opening SQLite DB at: {db_path}")   # handy log
+
+    engine = create_engine(db_url, connect_args={"check_same_thread": False})
     Base.metadata.create_all(engine)
-    return sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    return sessionmaker(bind=engine, autoflush=False, autocommit=False)

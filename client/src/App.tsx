@@ -16,9 +16,12 @@ interface Device {
   latencyMs?: number;
 }
 
+type Filter = "all" | "online" | "offline";
+
 const App: React.FC = () => {
   const [devices, setDevices] = useState<Record<string, Device>>({});
   const [connectionStatus, setConnectionStatus] = useState<string>('Connecting...');
+  const [filter, setFilter] = useState<Filter>("all");
   const ws = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -137,22 +140,59 @@ const App: React.FC = () => {
   return (
     <div className="App p-4 space-y-4">
       <h1 className="text-2xl font-semibold">FOV Dashboard</h1>
+      
+      {(() => {
+        const deviceEntries = Object.entries(devices);
+        const onlineCount = deviceEntries.filter(([_, d]) => d.wifiConnected).length;
+        const offlineCount = deviceEntries.filter(([_, d]) => !d.wifiConnected).length;
+        const allCount = deviceEntries.length;
+        
+        return (
+          <div className="flex gap-2 mt-2">
+            {([
+              { key: "all" as const, label: `All (${allCount})` },
+              { key: "online" as const, label: `Online (${onlineCount})` },
+              { key: "offline" as const, label: `Offline (${offlineCount})` }
+            ]).map(({ key, label }) => (
+              <button
+                key={key}
+                onClick={() => setFilter(key)}
+                className={`px-3 py-1 rounded-md border
+                            ${filter === key ? "bg-blue-600 text-white" : "bg-white hover:bg-gray-100"}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        );
+      })()}
+      
       <p>Connection Status: {connectionStatus}</p>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      {Object.entries(devices)
-        .sort(([a], [b]) => a.localeCompare(b))
-        .map(([deviceName, device]) => (
-          <DeviceComponent
-            key={deviceName}
-            name={device.name}
-            wifiConnected={device.wifiConnected}
-            batteryCharge={device.batteryCharge}
-            temperature={device.temperature}
-            firmwareVersion={device.firmwareVersion}
-            latencyMs={device.latencyMs}
-          />
-        ))}
-      </div>
+      
+      {/* Derive filtered devices */}
+      {(() => {
+        const filteredDevices = Object.entries(devices).filter(([_, d]) => 
+          (filter === "all") ? true : (filter === "online" ? d.wifiConnected : !d.wifiConnected)
+        );
+        
+        return (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filteredDevices
+              .sort(([a],[b]) => a.localeCompare(b))
+              .map(([deviceName, device]) => (
+                <DeviceComponent
+                  key={deviceName}
+                  name={device.name}
+                  wifiConnected={device.wifiConnected}
+                  batteryCharge={device.batteryCharge}
+                  temperature={device.temperature}
+                  firmwareVersion={device.firmwareVersion}
+                  latencyMs={device.latencyMs}
+                />
+              ))}
+          </div>
+        );
+      })()}
 
       {/* Toast portal */}
       <ToastContainer

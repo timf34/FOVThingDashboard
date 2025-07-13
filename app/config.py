@@ -29,3 +29,4 @@ class FOVDashboardConfig:
         # self.latency_ping_topic: str  = "dalymount_IRL/pub"
         self.latency_ping_topic: str  = "marvel_AUS/ai_pub"
         self.latency_echo_topic: str  = "esp32/echo"
+        self.relay_topic: str = "fov/relay/+/heartbeat"

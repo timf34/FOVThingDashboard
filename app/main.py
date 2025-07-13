@@ -14,6 +14,7 @@ from aws_iot.IOTClient import IOTClient
 from aws_iot.IOTContext import IOTContext, IOTCredentials
 from database import init_db
 from device import DeviceManager
+from relay import RelayManager
 from config import FOVDashboardConfig
 from websockets_manager import WebSocketManager
 
@@ -21,6 +22,7 @@ app = FastAPI()
 SessionFactory = init_db()
 device_manager = DeviceManager(SessionFactory)
 config = FOVDashboardConfig()
+relay_manager  = RelayManager()
 
 # store send-timestamp per ping-id
 _pending_pings: dict[str, float] = {}
@@ -137,6 +139,7 @@ def start_iot_client():
     iot_client.subscribe(topic=config.temperature_topic, handler=message_handler)
     iot_client.subscribe(topic=config.ota_topic, handler=message_handler)
     iot_client.subscribe(topic=config.latency_echo_topic, handler=latency_echo_handler)
+    iot_client.subscribe(topic=config.relay_topic, handler=relay_handler)
 
     # latency  –  publish one ping per connected device every minute
     def ping_loop() -> None:
@@ -155,6 +158,15 @@ def start_iot_client():
             time.sleep(PING_INTERVAL_S)
 
     Thread(target=ping_loop, name="latency-ping", daemon=True).start()
+
+
+def relay_handler(topic, payload, *a, **kw):
+    rid  = topic.split('/')[2]              # fov/relay/<id>/heartbeat
+    pkt  = json.loads(payload.decode())
+    relay_manager.upsert(rid, pkt)
+    asyncio.run(
+        WebSocketManager.notify_clients(f"relay:{rid}", relay_manager.relays[rid])
+    )
 
 
 @app.get("/api/status")
@@ -183,7 +195,8 @@ async def status():
             "memory_used_percent": mem.percent,
             "memory_available_mb": mem.available / (1024 * 1024)
         },
-        "server_time": datetime.utcnow().isoformat()
+        "server_time": datetime.utcnow().isoformat(),
+        "relays": relay_manager.relays,
     }
 
 
@@ -258,13 +271,21 @@ async def get_device_history(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-async def check_device_status():
-    """Periodic task to update device WiFi status"""
+async def check_system_status():
+    """Periodic task to update device WiFi status *and* relay liveness"""
     while True:
-        changed = device_manager.check_wifi_status()     # 🆕
+        # --- devices ---------------------------------------------------
+        changed = device_manager.check_wifi_status()
         for name in changed:
-            # stream the new state to all connected browsers
             await WebSocketManager.notify_clients(name, device_manager.devices[name])
+
+        # --- relays  ----------------------------------------------------
+        relay_manager.refresh()
+        for rid, st in relay_manager.relays.items():
+            if not st.get("_sent") or st["_sent"] != st["alive"]:
+                await WebSocketManager.notify_clients(f"relay:{rid}", st)
+                st["_sent"] = st["alive"]
+
         await asyncio.sleep(30)
 
 
@@ -276,7 +297,7 @@ async def startup_event():
     iot_thread.start()
 
     # Start the device status checker
-    asyncio.create_task(check_device_status())
+    asyncio.create_task(check_system_status())
 
     async def _latency_housekeeping():
         while True:

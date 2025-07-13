@@ -6,13 +6,20 @@ interface ChampionRelayProps {
     alive?: boolean;
     last_seen?: string;   // ISO string from backend
   };
+  wsConnected?: boolean;
 }
 
-export default function ChampionRelay({ data }: ChampionRelayProps) {
-  /* fall-back to "offline / never" until the first heartbeat arrives */
-  const alive     = data?.alive ?? false;
-  const lastSeen  = data?.last_seen
-      ? new Date(data.last_seen).toLocaleTimeString()
+export default function ChampionRelay({ data, wsConnected = true }: ChampionRelayProps) {
+  if (!wsConnected) return null;   // hide while reconnecting
+
+  // If we *already* have a last_seen timestamp, decide locally whether
+  // the relay is still alive (≤ timeout seconds ago).  That prevents
+  // the "flash to offline" on every page refresh.
+  const timeoutMs = 90_000;                    // keep in sync with backend
+  const seen      = data?.last_seen && new Date(data.last_seen).getTime();
+  const alive     = !!seen && Date.now() - seen < timeoutMs;
+  const lastSeen  = seen
+      ? new Date(seen).toLocaleTimeString()
       : "never";
 
   return (

@@ -126,8 +126,14 @@ const App: React.FC = () => {
     const loadInitial = async () => {
       try {
         const api = `${window.location.protocol}//${window.location.host}`;
-        const res = await fetch(`${api}/api/devices`);
-        setDevices(await res.json());
+
+        // ① devices
+        const devRes = await fetch(`${api}/api/devices`);
+        setDevices(await devRes.json());
+
+        // ② relays
+        const relRes = await fetch(`${api}/api/relays`);
+        setRelays(await relRes.json());
       } catch (e) {
         console.error('initial fetch failed', e);
       }
@@ -149,7 +155,10 @@ const App: React.FC = () => {
   return (
     <div className="App p-4 space-y-4">
       {/* fixed top-right status of the Champion-Data relay */}
-      <ChampionRelay data={relays["championdata"]} />
+      <ChampionRelay
+        data={relays["championdata"]}
+        wsConnected={connectionStatus === "Connected"}
+      />
 
       <h1 className="text-2xl font-semibold">FOV Dashboard</h1>
       

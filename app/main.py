@@ -6,6 +6,7 @@ from collections import defaultdict
 from datetime import timezone
 from fastapi import FastAPI, WebSocket, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.encoders import jsonable_encoder
 from datetime import datetime, timedelta
 from threading import Thread
 from typing import Optional
@@ -220,7 +221,7 @@ async def websocket_endpoint(websocket: WebSocket):
             try:
                 await websocket.send_json({
                     "topic": f"relay:{rid}",
-                    "message": state
+                    "message": jsonable_encoder(state)  
                 })
             except Exception as e:
                 print(f"Error sending initial relay data: {e}")
@@ -254,6 +255,21 @@ async def websocket_endpoint(websocket: WebSocket):
 async def get_devices():
     """Get all known devices and their current state"""
     return device_manager.devices
+
+@app.get("/api/relays")
+async def get_relays():
+    """
+    Return the in-memory relay state so the UI can show it
+    without waiting for the next heartbeat.
+    """
+    # JSON-encode datetimes so the client can parse them
+    return {
+        rid: {
+            **st,
+            "last_seen": st["last_seen"].isoformat() + "Z" if isinstance(st["last_seen"], datetime) else st["last_seen"]
+        }
+        for rid, st in relay_manager.relays.items()
+    }
 
 
 @app.get("/api/device/{device_name}/history")

@@ -1,3 +1,5 @@
 .idea
 *.pyc
 app/__pycache__/*
+*.zip
+dir_tree_prefs.json

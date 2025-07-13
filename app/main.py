@@ -214,6 +214,17 @@ async def websocket_endpoint(websocket: WebSocket):
                 })
             except Exception as e:
                 print(f"Error sending initial device data: {e}")
+
+        # Send current state of all relays
+        for rid, state in relay_manager.relays.items():
+            try:
+                await websocket.send_json({
+                    "topic": f"relay:{rid}",
+                    "message": state
+                })
+            except Exception as e:
+                print(f"Error sending initial relay data: {e}")
+
         
         # Keep connection alive with ping/pong mechanism
         while True:

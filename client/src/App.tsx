@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import DeviceComponent from './components/DeviceComponent';
-import RelayComponent from './components/RelayComponent';
+import ChampionRelay from './components/ChampionRelay';   // NEW
 import './index.css';
 
 interface Device {
@@ -148,6 +148,9 @@ const App: React.FC = () => {
 
   return (
     <div className="App p-4 space-y-4">
+      {/* fixed top-right status of the Champion-Data relay */}
+      <ChampionRelay data={relays["championdata"]} />
+
       <h1 className="text-2xl font-semibold">FOV Dashboard</h1>
       
       {(() => {
@@ -177,17 +180,6 @@ const App: React.FC = () => {
       })()}
       
       <p>Connection Status: {connectionStatus}</p>
-      
-      {Object.keys(relays).length > 0 && (
-        <>
-          <h2 className="text-xl font-semibold mb-2">Relay services</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-            {Object.entries(relays).map(([rid, r]) => (
-              <RelayComponent key={rid} id={rid} {...r} />
-            ))}
-          </div>
-        </>
-      )}
       
       {/* Derive filtered devices */}
       {(() => {

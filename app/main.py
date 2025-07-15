@@ -2,6 +2,7 @@ import asyncio
 import json
 import os
 import time
+import uuid
 from collections import defaultdict
 from datetime import timezone
 from fastapi import FastAPI, WebSocket, HTTPException
@@ -55,10 +56,8 @@ app.add_middleware(
 def initialize_iot_client() -> IOTClient:
     iot_context = IOTContext()
 
-    if os.name == 'nt':
-        client_id = "FOVDashboardClientLocalx"
-    else:
-        client_id = "FOVDashboardClient"
+    # Generate a unique client ID using UUID
+    client_id = f"FOVDashboardClient-{uuid.uuid4()}"
 
     print(f"Client ID: {client_id}")
     iot_credentials = IOTCredentials(
